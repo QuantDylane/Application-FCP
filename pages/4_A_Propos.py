@@ -4,7 +4,11 @@ Détaille toutes les notions, formules et concepts utilisés dans l'application
 """
 
 import streamlit as st
-from config import PRIMARY_COLOR, SECONDARY_COLOR, ACCENT_COLOR
+
+# Color Scheme
+PRIMARY_COLOR = "#114B80"    # Bleu profond
+SECONDARY_COLOR = "#567389"  # Bleu-gris
+ACCENT_COLOR = "#ACC7DF"     # Bleu clair
 
 # Configuration de la page
 st.set_page_config(
