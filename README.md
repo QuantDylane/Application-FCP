@@ -41,7 +41,9 @@ Cette application offre une plateforme complète pour analyser les performances 
 ## 📋 Prérequis
 
 - Python 3.8 ou supérieur
-- Fichier Excel `data_fcp.xlsx` contenant les données des FCP
+- Fichier de données FCP au format **CSV** ou **Excel (XLSX)**
+  - Format CSV : `data_fcp.csv`
+  - Format Excel : `data_fcp.xlsx`
 
 ## 🚀 Installation
 
@@ -68,14 +70,20 @@ L'application s'ouvrira automatiquement dans votre navigateur par défaut à l'a
 
 ### Configuration
 
-L'application utilise une variable d'environnement optionnelle pour spécifier le fichier de données :
+L'application **détecte automatiquement** le format du fichier (CSV ou XLSX) en fonction de l'extension.
+
+Pour spécifier un fichier de données personnalisé, utilisez la variable d'environnement :
 
 ```bash
-set FCP_DATA_FILE=chemin/vers/votre/fichier.xlsx  # Windows
-export FCP_DATA_FILE=chemin/vers/votre/fichier.xlsx  # Linux/Mac
+set FCP_DATA_FILE=chemin/vers/votre/fichier.xlsx  # Windows - Excel
+set FCP_DATA_FILE=chemin/vers/votre/fichier.csv   # Windows - CSV
+export FCP_DATA_FILE=chemin/vers/votre/fichier.xlsx  # Linux/Mac - Excel
+export FCP_DATA_FILE=chemin/vers/votre/fichier.csv   # Linux/Mac - CSV
 ```
 
 Par défaut, l'application cherche le fichier `data_fcp.xlsx` dans le répertoire courant.
+
+**Note** : Pour les fichiers CSV, toutes les données doivent être dans un seul fichier. Pour les fichiers Excel, les données peuvent être organisées en plusieurs feuilles (Valeurs Liquidatives, Souscriptions Rachats, Actifs Nets).
 
 ## 📁 Structure du Projet
 
@@ -93,10 +101,24 @@ Application-FCP/
 
 ## 📊 Format des Données
 
-Le fichier Excel doit contenir les feuilles suivantes :
-- **Valeurs Liquidatives** (ou autre nom spécifié) : Données quotidiennes des VL
+L'application supporte deux formats de fichiers :
+
+### Format Excel (XLSX) - Recommandé
+Le fichier Excel peut contenir plusieurs feuilles pour organiser les données :
+- **Valeurs Liquidatives** : Données quotidiennes des VL
   - Colonne `Date` : Format date (DD/MM/YYYY)
   - Colonnes suivantes : Une colonne par FCP avec les valeurs liquidatives
+- **Souscriptions Rachats** : Transactions de souscription et rachat
+  - Colonnes : Date, FCP, Opérations, Montant, Type de Client
+- **Actifs Nets** : Évolution des actifs nets par FCP
+  - Colonnes : Date, FCP, Montant
+
+### Format CSV
+Pour les fichiers CSV, toutes les données doivent être dans un seul fichier :
+- Colonne `Date` : Format date (YYYY-MM-DD ou DD/MM/YYYY)
+- Colonnes suivantes : Selon le type de données (VL, transactions, actifs)
+- Encodage : UTF-8 recommandé
+- Séparateur : Virgule (,)
 
 ## 🎨 Thème et Design
 

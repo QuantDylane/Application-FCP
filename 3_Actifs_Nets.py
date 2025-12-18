@@ -104,30 +104,48 @@ st.markdown(f"""
 
 @st.cache_data
 def load_actifs_nets_data():
-    """Load net assets data from Excel"""
+    """Load net assets data from CSV or Excel"""
     data_file = os.getenv('FCP_DATA_FILE', 'data_fcp.xlsx')
-    df = pd.read_excel(data_file, sheet_name='Actifs Nets')
-    df['Date'] = pd.to_datetime(df['Date'])
+    file_extension = os.path.splitext(data_file)[1].lower()
+    
+    if file_extension == '.csv':
+        df = pd.read_csv(data_file)
+    else:
+        df = pd.read_excel(data_file, sheet_name='Actifs Nets')
+    
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     df = df.sort_values('Date')
     return df
 
 
 @st.cache_data
 def load_souscriptions_rachats_data():
-    """Load subscriptions and redemptions data from Excel"""
+    """Load subscriptions and redemptions data from CSV or Excel"""
     data_file = os.getenv('FCP_DATA_FILE', 'data_fcp.xlsx')
-    df = pd.read_excel(data_file, sheet_name='Souscriptions Rachats')
-    df['Date'] = pd.to_datetime(df['Date'])
+    file_extension = os.path.splitext(data_file)[1].lower()
+    
+    if file_extension == '.csv':
+        df = pd.read_csv(data_file)
+    else:
+        df = pd.read_excel(data_file, sheet_name='Souscriptions Rachats')
+    
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     df = df.sort_values('Date')
     return df
 
 
 @st.cache_data
 def load_valeurs_liquidatives_data():
-    """Load net asset values (VL) data from Excel"""
+    """Load net asset values (VL) data from CSV or Excel"""
     data_file = os.getenv('FCP_DATA_FILE', 'data_fcp.xlsx')
-    df = pd.read_excel(data_file, sheet_name='Valeurs Liquidatives')
-    df['Date'] = pd.to_datetime(df['Date'])
+    file_extension = os.path.splitext(data_file)[1].lower()
+    
+    if file_extension == '.csv':
+        df = pd.read_csv(data_file)
+    else:
+        df = pd.read_excel(data_file, sheet_name='Valeurs Liquidatives')
+    
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     df = df.sort_values('Date')
     return df
 

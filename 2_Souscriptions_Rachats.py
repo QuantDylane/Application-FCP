@@ -104,10 +104,16 @@ st.markdown(f"""
 
 @st.cache_data
 def load_souscriptions_rachats_data():
-    """Load subscriptions and redemptions data from Excel"""
+    """Load subscriptions and redemptions data from CSV or Excel"""
     data_file = os.getenv('FCP_DATA_FILE', 'data_fcp.xlsx')
-    df = pd.read_excel(data_file, sheet_name='Souscriptions Rachats')
-    df['Date'] = pd.to_datetime(df['Date'])
+    file_extension = os.path.splitext(data_file)[1].lower()
+    
+    if file_extension == '.csv':
+        df = pd.read_csv(data_file)
+    else:
+        df = pd.read_excel(data_file, sheet_name='Souscriptions Rachats')
+    
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     df = df.sort_values('Date')
     return df
 

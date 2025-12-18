@@ -877,9 +877,15 @@ def normalize_risk_fingerprint(fingerprints_dict):
 
 @st.cache_data
 def load_data():
-    """Charge les données du fichier Excel"""
-    df = pd.read_excel(DATA_FILE, sheet_name='Valeurs Liquidatives')
-    df['Date'] = pd.to_datetime(df['Date'])
+    """Charge les données du fichier CSV ou Excel"""
+    file_extension = os.path.splitext(DATA_FILE)[1].lower()
+    
+    if file_extension == '.csv':
+        df = pd.read_csv(DATA_FILE)
+    else:
+        df = pd.read_excel(DATA_FILE, sheet_name='Valeurs Liquidatives')
+    
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     df = df.sort_values('Date')
     return df
 
