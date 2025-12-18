@@ -1,1 +1,141 @@
-# Application-FCP
+# 📊 Application de Gestion FCP
+
+Application web interactive pour l'analyse et la gestion de Fonds Communs de Placement (FCP), développée avec Streamlit.
+
+## 🎯 Objectif
+
+Cette application offre une plateforme complète pour analyser les performances des FCP, gérer les souscriptions/rachats, suivre les actifs nets et générer des rapports détaillés avec visualisations avancées.
+
+## ✨ Fonctionnalités Principales
+
+### 1. 📈 Valeurs Liquidatives
+- **Analyse de performance** : Visualisation des valeurs liquidatives avec graphiques interactifs
+- **Calculs de rendement** : Rendements annualisés, volatilité, ratios de Sharpe
+- **Comparaisons multi-fonds** : Analyse comparative entre plusieurs FCP
+- **Clustering et segmentation** : Regroupement automatique des fonds par profil de risque
+- **Rapports narratifs** : Génération automatique de résumés analytiques
+
+### 2. 💰 Souscriptions & Rachats
+- Gestion des transactions de souscription et rachat
+- Suivi des flux entrants et sortants
+- Historique détaillé des opérations
+
+### 3. 💼 Actifs Nets
+- Suivi de l'évolution des actifs nets
+- Analyse de la composition du portefeuille
+- Indicateurs de performance globale
+
+### 4. ℹ️ À Propos
+- Documentation de l'application
+- Informations sur les méthodologies de calcul
+- Guide d'utilisation
+
+## 🛠️ Technologies Utilisées
+
+- **Framework** : Streamlit
+- **Data Analysis** : Pandas, NumPy
+- **Visualisations** : Plotly, Plotly Express
+- **Machine Learning** : Scikit-learn (clustering K-Means)
+- **Statistiques** : SciPy
+
+## 📋 Prérequis
+
+- Python 3.8 ou supérieur
+- Fichier Excel `data_fcp.xlsx` contenant les données des FCP
+
+## 🚀 Installation
+
+1. **Cloner le repository**
+```bash
+git clone <repository-url>
+cd Application-FCP
+```
+
+2. **Installer les dépendances**
+```bash
+pip install streamlit pandas numpy plotly scikit-learn scipy openpyxl
+```
+
+## 💻 Utilisation
+
+### Démarrage de l'application
+
+```bash
+streamlit run app.py
+```
+
+L'application s'ouvrira automatiquement dans votre navigateur par défaut à l'adresse `http://localhost:8501`
+
+### Configuration
+
+L'application utilise une variable d'environnement optionnelle pour spécifier le fichier de données :
+
+```bash
+set FCP_DATA_FILE=chemin/vers/votre/fichier.xlsx  # Windows
+export FCP_DATA_FILE=chemin/vers/votre/fichier.xlsx  # Linux/Mac
+```
+
+Par défaut, l'application cherche le fichier `data_fcp.xlsx` dans le répertoire courant.
+
+## 📁 Structure du Projet
+
+```
+Application-FCP/
+├── app.py                          # Page d'accueil et configuration principale
+├── 1_Valeurs_Liquidatives.py      # Module d'analyse des valeurs liquidatives
+├── 2_Souscriptions_Rachats.py     # Module de gestion des transactions
+├── 3_Actifs_Nets.py               # Module de suivi des actifs nets
+├── 4_A_Propos.py                  # Page d'information
+├── data_loader.py                 # Utilitaires de chargement de données
+├── data_fcp.xlsx                  # Fichier de données (non inclus dans le repo)
+└── README.md                      # Documentation
+```
+
+## 📊 Format des Données
+
+Le fichier Excel doit contenir les feuilles suivantes :
+- **Valeurs Liquidatives** (ou autre nom spécifié) : Données quotidiennes des VL
+  - Colonne `Date` : Format date (DD/MM/YYYY)
+  - Colonnes suivantes : Une colonne par FCP avec les valeurs liquidatives
+
+## 🎨 Thème et Design
+
+L'application utilise une palette de couleurs professionnelle :
+- **Bleu profond** (#114B80) : Titres et boutons principaux
+- **Bleu-gris** (#567389) : Widgets et éléments secondaires
+- **Bleu clair** (#ACC7DF) : Arrière-plans et effets de survol
+
+## 📈 Métriques Calculées
+
+L'application calcule automatiquement :
+- Rendements annualisés
+- Volatilité (écart-type)
+- Ratio de Sharpe
+- Drawdown maximum
+- Corrélations entre fonds
+- Profils de risque par clustering
+
+## 🤝 Contribution
+
+Pour contribuer au projet :
+1. Fork le repository
+2. Créez une branche pour votre fonctionnalité (`git checkout -b feature/nouvelle-fonctionnalite`)
+3. Committez vos changements (`git commit -m 'Ajout d'une nouvelle fonctionnalité'`)
+4. Push vers la branche (`git push origin feature/nouvelle-fonctionnalite`)
+5. Ouvrez une Pull Request
+
+## 📝 Licence
+
+Ce projet est développé pour **CGF BOURSE** - Tous droits réservés.
+
+## 👤 Auteur
+
+**DYLANE** - CGF BOURSE
+
+## 📞 Support
+
+Pour toute question ou problème, veuillez contacter l'équipe de développement CGF BOURSE.
+
+---
+
+**Note** : Cette application est destinée à un usage interne pour l'analyse professionnelle des fonds communs de placement.
