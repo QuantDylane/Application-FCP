@@ -3,6 +3,7 @@ Fonctions utilitaires partagées pour l'application FCP
 Contient les fonctions de chargement de données et de conversion
 """
 import pandas as pd
+import numpy as np
 import streamlit as st
 from config import DATA_FILE, IS_CSV, DEFAULT_SHEET_NAME, PRIMARY_COLOR
 
@@ -16,7 +17,7 @@ def load_data(sheet_name=DEFAULT_SHEET_NAME):
         sheet_name (str): Nom de la feuille Excel à charger (ignoré pour CSV)
     
     Returns:
-        pd.DataFrame: DataFrame avec les données chargées
+        pd.DataFrame: DataFrame avec les données chargées et dates triées
     """
     if IS_CSV:
         # Pour CSV, charger directement (pas de notion de feuilles)
@@ -112,3 +113,126 @@ def safe_division(numerator, denominator, default=0):
         return numerator / denominator
     except (TypeError, ZeroDivisionError):
         return default
+
+
+def calculate_returns(prices):
+    """
+    Calcule les rendements à partir d'une série de prix
+    
+    Args:
+        prices (pd.Series): Série de prix
+        
+    Returns:
+        pd.Series: Série de rendements (en pourcentage)
+    """
+    if len(prices) < 2:
+        return pd.Series()
+    return prices.pct_change().dropna() * 100
+
+
+def calculate_annualized_return(returns, periods_per_year=252):
+    """
+    Calcule le rendement annualisé
+    
+    Args:
+        returns (pd.Series): Série de rendements
+        periods_per_year (int): Nombre de périodes par an (252 pour jours de trading)
+        
+    Returns:
+        float: Rendement annualisé en pourcentage
+    """
+    if len(returns) == 0:
+        return 0
+    mean_return = returns.mean()
+    return ((1 + mean_return / 100) ** periods_per_year - 1) * 100
+
+
+def calculate_volatility(returns, periods_per_year=252):
+    """
+    Calcule la volatilité annualisée
+    
+    Args:
+        returns (pd.Series): Série de rendements
+        periods_per_year (int): Nombre de périodes par an
+        
+    Returns:
+        float: Volatilité annualisée en pourcentage
+    """
+    if len(returns) == 0:
+        return 0
+    return returns.std() * np.sqrt(periods_per_year)
+
+
+def calculate_sharpe_ratio(returns, risk_free_rate=0, periods_per_year=252):
+    """
+    Calcule le ratio de Sharpe
+    
+    Args:
+        returns (pd.Series): Série de rendements
+        risk_free_rate (float): Taux sans risque annuel (en %)
+        periods_per_year (int): Nombre de périodes par an
+        
+    Returns:
+        float: Ratio de Sharpe
+    """
+    if len(returns) == 0:
+        return 0
+    
+    excess_returns = returns - (risk_free_rate / periods_per_year)
+    if excess_returns.std() == 0:
+        return 0
+    
+    return (excess_returns.mean() / excess_returns.std()) * np.sqrt(periods_per_year)
+
+
+def calculate_max_drawdown(prices):
+    """
+    Calcule le drawdown maximum
+    
+    Args:
+        prices (pd.Series): Série de prix
+        
+    Returns:
+        float: Drawdown maximum en pourcentage (valeur négative)
+    """
+    if len(prices) == 0:
+        return 0
+    
+    cumulative_returns = (1 + prices.pct_change()).cumprod()
+    running_max = cumulative_returns.expanding().max()
+    drawdown = (cumulative_returns - running_max) / running_max * 100
+    
+    return drawdown.min()
+
+
+def get_fcp_columns(df):
+    """
+    Extrait les colonnes FCP d'un DataFrame
+    
+    Args:
+        df (pd.DataFrame): DataFrame contenant les données
+        
+    Returns:
+        list: Liste des noms de colonnes FCP (toutes sauf 'Date')
+    """
+    return [col for col in df.columns if col != 'Date']
+
+
+def filter_dataframe_by_date(df, start_date, end_date):
+    """
+    Filtre un DataFrame par plage de dates
+    
+    Args:
+        df (pd.DataFrame): DataFrame avec une colonne 'Date'
+        start_date: Date de début
+        end_date: Date de fin
+        
+    Returns:
+        pd.DataFrame: DataFrame filtré
+    """
+    if 'Date' not in df.columns:
+        return df
+    
+    mask = (df['Date'] >= pd.to_datetime(start_date)) & (df['Date'] <= pd.to_datetime(end_date))
+    return df[mask]
+
