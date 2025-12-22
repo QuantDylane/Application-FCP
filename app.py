@@ -11,9 +11,9 @@ FILE_EXTENSION = os.path.splitext(DATA_FILE)[1].lower()
 IS_CSV = FILE_EXTENSION == '.csv'
 
 # Schéma de couleurs
-PRIMARY_COLOR = "#114B80"    # Bleu profond — titres, boutons principaux
-SECONDARY_COLOR = "#567389"  # Bleu-gris — widgets, lignes, icônes
-ACCENT_COLOR = "#ACC7DF"     # Bleu clair — fonds de cartes, hover
+PRIMARY_COLOR = "#004080"    # Bleu foncé — titres, boutons principaux
+SECONDARY_COLOR = "#333333"  # Gris foncé — widgets, lignes, icônes
+THIRD_COLOR = "#E0DEDD"      # Gris clair — fonds de cartes, hover
 
 # Configuration de la page
 st.set_page_config(
