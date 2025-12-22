@@ -1,6 +1,6 @@
 """
-Actifs Nets Analysis Page
-Analyzes net assets for FCP funds
+Page d'Analyse des Actifs Nets  
+Analyse les actifs nets pour les fonds FCP
 """
 
 import streamlit as st
@@ -25,12 +25,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Color Scheme
+# Schéma de couleurs
 PRIMARY_COLOR = "#114B80"    # Bleu profond — titres, boutons principaux
 SECONDARY_COLOR = "#567389"  # Bleu-gris — widgets, lignes, icônes
 ACCENT_COLOR = "#ACC7DF"     # Bleu clair — fonds de cartes, hover
 
-# Custom CSS for simplified styling
+# CSS personnalisé pour un style simplifié
 st.markdown(f"""
 <style>
     .ranking-card {{
@@ -104,7 +104,7 @@ st.markdown(f"""
 
 @st.cache_data
 def load_actifs_nets_data():
-    """Load net assets data from CSV or Excel"""
+    """Charge les données d'actifs nets depuis CSV ou Excel"""
     data_file = os.getenv('FCP_DATA_FILE', 'data_fcp.xlsx')
     file_extension = os.path.splitext(data_file)[1].lower()
     
@@ -120,7 +120,7 @@ def load_actifs_nets_data():
 
 @st.cache_data
 def load_souscriptions_rachats_data():
-    """Load subscriptions and redemptions data from CSV or Excel"""
+    """Charge les données de souscriptions et rachats depuis CSV ou Excel"""
     data_file = os.getenv('FCP_DATA_FILE', 'data_fcp.xlsx')
     file_extension = os.path.splitext(data_file)[1].lower()
     
@@ -136,7 +136,7 @@ def load_souscriptions_rachats_data():
 
 @st.cache_data
 def load_valeurs_liquidatives_data():
-    """Load net asset values (VL) data from CSV or Excel"""
+    """Charge les données de valeurs liquidatives (VL) depuis CSV ou Excel"""
     data_file = os.getenv('FCP_DATA_FILE', 'data_fcp.xlsx')
     file_extension = os.path.splitext(data_file)[1].lower()
     
@@ -151,14 +151,14 @@ def load_valeurs_liquidatives_data():
 
 
 def calculate_growth_rate(series):
-    """Calculate growth rate for a series"""
+    """Calcule le taux de croissance pour une série"""
     if len(series) < 2:
         return 0
     return ((series.iloc[-1] / series.iloc[0]) - 1) * 100
 
 
 def calculate_cagr(series, periods_per_year=252):
-    """Calculate Compound Annual Growth Rate"""
+    """Calcule le Taux de Croissance Annuel Composé (CAGR)"""
     if len(series) < 2:
         return 0
     years = len(series) / periods_per_year
@@ -168,23 +168,23 @@ def calculate_cagr(series, periods_per_year=252):
 
 
 def calculate_correlation_with_flows(df_actifs, df_flows, fcp_name, date_range):
-    """Calculate correlation between net assets and subscription/redemption flows"""
-    # Filter flows for the FCP
+    """Calcule la corrélation entre actifs nets et flux de souscription/rachat"""
+    # Filtrer les flux pour le FCP
     df_fcp_flows = df_flows[df_flows['FCP'] == fcp_name].copy()
     
-    # Calculate net flows (subscriptions - redemptions)
+    # Calculer les flux nets (souscriptions - rachats)
     df_fcp_flows['Montant_Signe'] = df_fcp_flows.apply(
         lambda x: x['Montant'] if x['Opérations'] == 'Souscriptions' else -x['Montant'],
         axis=1
     )
     
-    # Aggregate by date
+    # Agréger par date
     daily_flows = df_fcp_flows.groupby('Date')['Montant_Signe'].sum()
     
-    # Get actifs nets for the FCP
+    # Obtenir les actifs nets pour le FCP
     df_actifs_fcp = df_actifs.set_index('Date')[fcp_name]
     
-    # Align dates
+    # Aligner les dates
     common_dates = df_actifs_fcp.index.intersection(daily_flows.index)
     
     if len(common_dates) < 2:
@@ -193,7 +193,7 @@ def calculate_correlation_with_flows(df_actifs, df_flows, fcp_name, date_range):
     actifs_aligned = df_actifs_fcp.loc[common_dates]
     flows_aligned = daily_flows.loc[common_dates]
     
-    # Calculate correlation
+    # Calculer la corrélation
     correlation = actifs_aligned.corr(flows_aligned)
     
     return correlation, actifs_aligned, flows_aligned
@@ -201,14 +201,14 @@ def calculate_correlation_with_flows(df_actifs, df_flows, fcp_name, date_range):
 
 def calculate_vl_contribution(df_actifs, df_vl, fcp_name, date_range):
     """
-    Calculate the contribution of VL performance vs flows to net assets change
-    Returns: VL contribution (%), Flow contribution (%), correlation between VL and actifs
+    Calcule la contribution de la performance VL vs flux à la variation des actifs nets
+    Retourne: Contribution VL (%), Contribution Flux (%), corrélation entre VL et actifs
     """
-    # Get the data for the FCP
+    # Obtenir les données pour le FCP
     df_actifs_fcp = df_actifs.set_index('Date')[fcp_name]
     df_vl_fcp = df_vl.set_index('Date')[fcp_name]
     
-    # Align dates
+    # Aligner les dates
     common_dates = df_actifs_fcp.index.intersection(df_vl_fcp.index)
     
     if len(common_dates) < 2:
@@ -217,17 +217,17 @@ def calculate_vl_contribution(df_actifs, df_vl, fcp_name, date_range):
     actifs_aligned = df_actifs_fcp.loc[common_dates]
     vl_aligned = df_vl_fcp.loc[common_dates]
     
-    # Calculate changes
+    # Calculer les variations
     actifs_change = actifs_aligned.iloc[-1] - actifs_aligned.iloc[0]
     vl_perf = (vl_aligned.iloc[-1] / vl_aligned.iloc[0]) - 1
     
-    # Estimate number of shares (assuming stable at start)
+    # Estimer le nombre de parts (supposé stable au début)
     shares_start = actifs_aligned.iloc[0] / vl_aligned.iloc[0]
     
-    # VL contribution to actifs change (if shares stayed constant)
+    # Contribution VL à la variation des actifs (si les parts restaient constantes)
     vl_contribution_abs = shares_start * (vl_aligned.iloc[-1] - vl_aligned.iloc[0])
     
-    # Calculate percentages
+    # Calculer les pourcentages
     if actifs_change != 0:
         vl_contribution_pct = (vl_contribution_abs / actifs_change) * 100
         flow_contribution_pct = 100 - vl_contribution_pct
@@ -235,7 +235,7 @@ def calculate_vl_contribution(df_actifs, df_vl, fcp_name, date_range):
         vl_contribution_pct = 0
         flow_contribution_pct = 0
     
-    # Calculate correlation
+    # Calculer la corrélation
     correlation = actifs_aligned.corr(vl_aligned)
     
     return vl_contribution_pct, flow_contribution_pct, correlation
@@ -243,32 +243,32 @@ def calculate_vl_contribution(df_actifs, df_vl, fcp_name, date_range):
 
 def analyze_client_types(df_flows, selected_fcps, date_range):
     """
-    Analyze subscription/redemption patterns by client type
+    Analyse les patterns de souscription/rachat par type de client
     """
-    # Ensure date_range values are pandas Timestamps
+    # S'assurer que les valeurs date_range sont des Timestamps pandas
     start_date = pd.Timestamp(date_range[0])
     end_date = pd.Timestamp(date_range[1])
     
-    # Filter by date and FCPs
+    # Filtrer par date et FCP
     df_filtered = df_flows[
         (df_flows['Date'] >= start_date) & 
         (df_flows['Date'] <= end_date) &
         (df_flows['FCP'].isin(selected_fcps))
     ].copy()
     
-    # Calculate signed amounts
+    # Calculer les montants signés
     df_filtered['Montant_Signe'] = df_filtered.apply(
         lambda x: x['Montant'] if x['Opérations'] == 'Souscriptions' else -x['Montant'],
         axis=1
     )
     
-    # Group by client type
+    # Grouper par type de client
     client_analysis = df_filtered.groupby('Type de clients').agg({
         'Montant': 'sum',
         'Montant_Signe': 'sum'
     }).reset_index()
     
-    # Separate subscriptions and redemptions
+    # Séparer souscriptions et rachats
     subscriptions = df_filtered[df_filtered['Opérations'] == 'Souscriptions'].groupby('Type de clients')['Montant'].sum()
     redemptions = df_filtered[df_filtered['Opérations'] == 'Rachats'].groupby('Type de clients')['Montant'].sum()
     
@@ -277,25 +277,25 @@ def analyze_client_types(df_flows, selected_fcps, date_range):
 
 @st.cache_data
 def analyze_seasonality(df, fcp_columns_tuple):
-    """Analyze monthly and quarterly seasonality patterns"""
+    """Analyse les patterns de saisonnalité mensuels et trimestriels"""
     df_copy = df.copy()
-    fcp_columns = list(fcp_columns_tuple)  # Convert tuple back to list
+    fcp_columns = list(fcp_columns_tuple)  # Convertir le tuple en liste
     
-    # Calculate monthly returns for each FCP
+    # Calculer les rendements mensuels pour chaque FCP
     monthly_data = {}
     quarterly_data = {}
     
-    # Resample once for all FCPs
+    # Rééchantillonnage une fois pour tous les FCP
     df_monthly_all = df_copy.set_index('Date').resample('ME')[fcp_columns].last()
     df_quarterly_all = df_copy.set_index('Date').resample('QE')[fcp_columns].last()
     
     for fcp in fcp_columns:
-        # Monthly analysis - more efficient approach
+        # Analyse mensuelle - approche plus efficace
         df_monthly_returns = df_monthly_all[fcp].pct_change() * 100
         monthly_avg = df_monthly_returns.groupby(df_monthly_returns.index.month).mean()
         monthly_data[fcp] = monthly_avg
         
-        # Quarterly analysis - more efficient approach
+        # Analyse trimestrielle - approche plus efficace
         df_quarterly_returns = df_quarterly_all[fcp].pct_change() * 100
         quarterly_avg = df_quarterly_returns.groupby(df_quarterly_returns.index.quarter).mean()
         quarterly_data[fcp] = quarterly_avg
@@ -304,7 +304,7 @@ def analyze_seasonality(df, fcp_columns_tuple):
 
 
 def main():
-    """Main function for the Actifs Nets page"""
+    """Fonction principale pour la page Actifs Nets"""
     st.header("💼 Analyse des Actifs Nets")
     
     try:
@@ -852,12 +852,12 @@ def main():
         # TAB 1: Volatility and Risk Analysis
         # ===================
         with tab1:
-            st.markdown("""
-            <div class="interpretation-note">
-                <strong>💡 Note de Synthèse:</strong> Cette analyse se concentre sur la volatilité et le risque des actifs nets. 
+            # Note d'interprétation dépliable
+            with st.expander("💡 Note de Synthèse: Volatilité et Risque", expanded=False):
+                st.markdown("""
+                Cette analyse se concentre sur la volatilité et le risque des actifs nets. 
                 La volatilité indique la stabilité, tandis que le ratio rendement/risque permet d'identifier les FCP offrant le meilleur compromis.
-            </div>
-            """, unsafe_allow_html=True)
+                """)
             
             # Add FCP selector for this tab
             st.markdown("##### 🎯 Sélection des FCP pour l'Analyse")
