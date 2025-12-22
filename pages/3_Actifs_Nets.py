@@ -26,9 +26,9 @@ st.set_page_config(
 )
 
 # Schéma de couleurs
-PRIMARY_COLOR = "#114B80"    # Bleu profond — titres, boutons principaux
-SECONDARY_COLOR = "#567389"  # Bleu-gris — widgets, lignes, icônes
-ACCENT_COLOR = "#ACC7DF"     # Bleu clair — fonds de cartes, hover
+PRIMARY_COLOR = "#004080"    # Bleu foncé — titres, boutons principaux
+SECONDARY_COLOR = "#333333"  # Gris foncé — widgets, lignes, icônes
+THIRD_COLOR = "#E0DEDD"      # Gris clair — fonds de cartes, hover
 
 # CSS personnalisé pour un style simplifié
 st.markdown(f"""
@@ -100,6 +100,31 @@ st.markdown(f"""
     }}
 </style>
 """, unsafe_allow_html=True)
+
+
+def color_negative_red_positive_green(val):
+    """
+    Applique un style de couleur pour les valeurs numériques :
+    - Vert pour les valeurs positives
+    - Rouge pour les valeurs négatives
+    - Neutre pour zéro ou valeurs non numériques
+    """
+    try:
+        if pd.isna(val):
+            return ''
+        if isinstance(val, str):
+            # Essayer de parser si c'est une chaîne
+            val_clean = val.replace('%', '').replace('+', '').replace(',', '.').replace(' FCFA', '').strip()
+            val = float(val_clean)
+        
+        if val > 0:
+            return 'background-color: #d4edda; color: #155724'  # Vert clair avec texte vert foncé
+        elif val < 0:
+            return 'background-color: #f8d7da; color: #721c24'  # Rouge clair avec texte rouge foncé
+        else:
+            return ''
+    except (ValueError, TypeError):
+        return ''
 
 
 @st.cache_data
@@ -1033,12 +1058,12 @@ def main():
                         df_risk_display['VaR 95% (%)'] = df_risk_display['VaR 95% (%)'].round(2)
                         
                         st.dataframe(
-                            df_risk_display.style.background_gradient(
-                                subset=['Max Drawdown (%)', 'VaR 95% (%)'], 
-                                cmap='RdYlGn_r'
-                            ).background_gradient(
-                                subset=['Downside Volatility (%)'], 
-                                cmap='RdYlGn_r'
+                            df_risk_display.style.applymap(
+                                color_negative_red_positive_green,
+                                subset=['Max Drawdown (%)', 'VaR 95% (%)']
+                            ).applymap(
+                                color_negative_red_positive_green,
+                                subset=['Downside Volatility (%)']
                             ),
                             use_container_width=True,
                             hide_index=True

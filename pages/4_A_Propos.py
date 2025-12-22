@@ -5,10 +5,10 @@ Détaille toutes les notions, formules et concepts utilisés dans l'application
 
 import streamlit as st
 
-# Color Scheme
-PRIMARY_COLOR = "#114B80"    # Bleu profond
-SECONDARY_COLOR = "#567389"  # Bleu-gris
-ACCENT_COLOR = "#ACC7DF"     # Bleu clair
+# Schéma de couleurs
+PRIMARY_COLOR = "#004080"    # Bleu foncé
+SECONDARY_COLOR = "#333333"  # Gris foncé
+THIRD_COLOR = "#E0DEDD"      # Gris clair
 
 # Configuration de la page
 st.set_page_config(
@@ -38,7 +38,7 @@ st.markdown(f"""
         font-family: 'Courier New', monospace;
     }}
     .concept-card {{
-        background: linear-gradient(135deg, {ACCENT_COLOR} 0%, white 100%);
+        background: linear-gradient(135deg, {THIRD_COLOR} 0%, white 100%);
         padding: 1.5rem;
         border-radius: 10px;
         margin: 1rem 0;

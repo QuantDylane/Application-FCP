@@ -25,9 +25,9 @@ MILLIONS_DIVISOR = 1e6  # Diviseur pour convertir les montants en millions
 HIGH_VOLATILITY_THRESHOLD = 50  # Seuil de pourcentage pour la classification de volatilité élevée
 
 # Schéma de couleurs
-PRIMARY_COLOR = "#114B80"    # Bleu profond — titres, boutons principaux
-SECONDARY_COLOR = "#567389"  # Bleu-gris — widgets, lignes, icônes
-ACCENT_COLOR = "#ACC7DF"     # Bleu clair — fonds de cartes, hover
+PRIMARY_COLOR = "#004080"    # Bleu foncé — titres, boutons principaux
+SECONDARY_COLOR = "#333333"  # Gris foncé — widgets, lignes, icônes
+THIRD_COLOR = "#E0DEDD"      # Gris clair — fonds de cartes, hover
 
 # Configuration de la page
 st.set_page_config(
@@ -102,6 +102,31 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
+def color_negative_red_positive_green(val):
+    """
+    Applique un style de couleur pour les valeurs numériques :
+    - Vert pour les valeurs positives
+    - Rouge pour les valeurs négatives
+    - Neutre pour zéro ou valeurs non numériques
+    """
+    try:
+        if pd.isna(val):
+            return ''
+        if isinstance(val, str):
+            # Essayer de parser si c'est une chaîne
+            val_clean = val.replace('%', '').replace('+', '').replace(',', '.').replace(' FCFA', '').strip()
+            val = float(val_clean)
+        
+        if val > 0:
+            return 'background-color: #d4edda; color: #155724'  # Vert clair avec texte vert foncé
+        elif val < 0:
+            return 'background-color: #f8d7da; color: #721c24'  # Rouge clair avec texte rouge foncé
+        else:
+            return ''
+    except (ValueError, TypeError):
+        return ''
+
+
 @st.cache_data
 def load_souscriptions_rachats_data():
     """Charge les données de souscriptions et rachats depuis CSV ou Excel"""
@@ -140,28 +165,28 @@ def main():
     """Fonction principale pour la page Souscriptions et Rachats"""
     st.header("💰 Analyse des Souscriptions et Rachats")
     
-    # Load data
+    # Charger les données
     with st.spinner('Chargement des données de souscriptions et rachats...'):
         df = load_souscriptions_rachats_data()
         df = calculate_net_flows(df)
     
-    # Get unique values for filters
+    # Obtenir les valeurs uniques pour les filtres
     all_fcps = sorted(df['FCP'].unique())
     all_operations = sorted(df['Opérations'].unique())
     all_client_types = sorted(df['Type de clients'].unique())
     
-    # Use all FCPs for analysis
+    # Utiliser tous les FCP pour l'analyse
     selected_fcps = all_fcps
     
-    # Sidebar filters
+    # Filtres de la barre latérale
     with st.sidebar:
         st.header("🔧 Filtres")
         
         st.info(f"📊 Analyse de tous les FCP ({len(all_fcps)} FCP)")
         
-        # Date range filter
+        # Filtre de plage de dates
         with st.expander("📅 Période d'analyse", expanded=True):
-            # Quick date filters
+            # Filtres rapides de dates
             quick_filter = st.radio(
                 "Filtres rapides",
                 options=['Personnalisé', 'WTD', 'MTD', 'QTD', 'YTD', 'Origine'],
@@ -174,23 +199,23 @@ def main():
             max_date = df['Date'].max()
             
             if quick_filter == 'WTD':
-                # Week to date
+                # Semaine à ce jour
                 date_range = (max_date - timedelta(days=max_date.weekday()), max_date)
             elif quick_filter == 'MTD':
-                # Month to date
+                # Mois à ce jour
                 date_range = (max_date.replace(day=1), max_date)
             elif quick_filter == 'QTD':
-                # Quarter to date
+                # Trimestre à ce jour
                 quarter_start_month = ((max_date.month - 1) // 3) * 3 + 1
                 date_range = (max_date.replace(month=quarter_start_month, day=1), max_date)
             elif quick_filter == 'YTD':
-                # Year to date
+                # Année à ce jour
                 date_range = (max_date.replace(month=1, day=1), max_date)
             elif quick_filter == 'Origine':
-                # From the beginning
+                # Depuis le début
                 date_range = (min_date, max_date)
             else:
-                # Custom date range
+                # Plage de dates personnalisée
                 date_range = st.date_input(
                     "Sélectionnez la période",
                     value=(df['Date'].min(), df['Date'].max()),
@@ -1126,12 +1151,13 @@ def main():
             
             # Display table
             st.dataframe(
-                fcp_net_flows_df.style.format({
+                fcp_net_flows_df.style.applymap(color_negative_red_positive_green, subset=['Flux Net'])
+                                      .format({
                     'Flux Net': '{:,.0f} FCFA',
                     'Part (%)': '{:.2f}',
                     'Part Cumulée (%)': '{:.2f}',
                     f'Part au {last_date.strftime("%Y-%m-%d")}': '{:.2f}'
-                }).background_gradient(subset=['Part (%)'], cmap='Blues'),
+                }),
                 use_container_width=True,
                 hide_index=True
             )

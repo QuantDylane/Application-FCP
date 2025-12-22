@@ -1,6 +1,6 @@
 """
-Valeurs Liquidatives Analysis Page
-Analyzes net asset values for FCP funds
+Page d'Analyse des Valeurs Liquidatives
+Analyse les valeurs liquidatives des fonds FCP
 """
 
 import streamlit as st
@@ -13,31 +13,31 @@ from sklearn.cluster import KMeans
 from scipy import stats
 import os
 
-# Constants
+# Constantes
 TRADING_DAYS_PER_YEAR = 252
 DATA_FILE = os.getenv('FCP_DATA_FILE', 'data_fcp.xlsx')
 
-# Risk Fingerprint Normalization Constants
-# For skewness normalization: transforms skewness values to [0, 100] scale
-# Positive skewness (right tail) maps to [50, 100], negative to [0, 50]
-SKEWNESS_SCALE_FACTOR = 25  # Scaling factor for skewness transformation
-SKEWNESS_NEUTRAL_SCORE = 50  # Score for zero skewness (neutral distribution)
+# Constantes de Normalisation du Profil de Risque
+# Pour la normalisation du skewness : transforme les valeurs de skewness à l'échelle [0, 100]
+# Skewness positif (queue droite) correspond à [50, 100], négatif à [0, 50]
+SKEWNESS_SCALE_FACTOR = 25  # Facteur d'échelle pour la transformation du skewness
+SKEWNESS_NEUTRAL_SCORE = 50  # Score pour un skewness nul (distribution neutre)
 
-# Color Scheme
-PRIMARY_COLOR = "#114B80"    # Bleu profond — titres, boutons principaux
-SECONDARY_COLOR = "#567389"  # Bleu-gris — widgets, lignes, icônes
-ACCENT_COLOR = "#ACC7DF"     # Bleu clair — fonds de cartes, hover
+# Schéma de couleurs
+PRIMARY_COLOR = "#004080"    # Bleu foncé — titres, boutons principaux
+SECONDARY_COLOR = "#333333"  # Gris foncé — widgets, lignes, icônes
+THIRD_COLOR = "#E0DEDD"      # Gris clair — fonds de cartes, hover
 
 def hex_to_rgba(hex_color, alpha=1.0):
     """
-    Convert hex color to rgba string format.
+    Convertit une couleur hexadécimale en format rgba.
     
     Args:
-        hex_color (str): Hex color string (e.g., '#114B80' or '114B80')
-        alpha (float): Alpha transparency value between 0.0 and 1.0
+        hex_color (str): Couleur hexadécimale (ex: '#004080' ou '004080')
+        alpha (float): Valeur de transparence alpha entre 0.0 et 1.0
         
     Returns:
-        str: RGBA color string (e.g., 'rgba(17, 75, 128, 0.3)')
+        str: Chaîne de couleur RGBA (ex: 'rgba(0, 64, 128, 0.3)')
     """
     if not 0.0 <= alpha <= 1.0:
         raise ValueError(f"Alpha value must be between 0.0 and 1.0, got {alpha}")
@@ -54,21 +54,21 @@ def hex_to_rgba(hex_color, alpha=1.0):
 
 def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, weaknesses):
     """
-    Generate an advanced, context-aware narrative analysis using LLM-style logic.
-    This function analyzes multiple dimensions and creates a cohesive, professional narrative.
+    Génère une analyse narrative avancée et contextuelle en utilisant une logique de type LLM.
+    Cette fonction analyse plusieurs dimensions et crée un récit cohérent et professionnel.
     
     Args:
-        fcp_name (str): Name of the FCP
-        risk_profile (dict): Normalized risk profile scores
-        metrics (dict): Raw metrics (volatility, drawdown, sharpe, etc.)
-        strengths (list): Top 3 strengths as (dimension, score) tuples
-        weaknesses (list): Bottom 3 weaknesses as (dimension, score) tuples
+        fcp_name (str): Nom du FCP
+        risk_profile (dict): Scores normalisés du profil de risque
+        metrics (dict): Métriques brutes (volatilité, drawdown, sharpe, etc.)
+        strengths (list): Top 3 des points forts en tant que tuples (dimension, score)
+        weaknesses (list): Top 3 des points faibles en tant que tuples (dimension, score)
     
     Returns:
-        str: Professional narrative ready for investment committee
+        str: Récit professionnel prêt pour le comité d'investissement
     """
     
-    # Extract key metrics
+    # Extraire les métriques clés
     score_global = np.mean(list(risk_profile.values()))
     volatility = metrics.get('volatility', 0)
     max_dd = metrics.get('max_drawdown', 0)
@@ -77,7 +77,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
     sharpe = metrics.get('sharpe_ratio', 0)
     ulcer = metrics.get('ulcer_index', 0)
     
-    # Determine overall quality
+    # Déterminer la qualité globale
     if score_global >= 70:
         quality = "excellent"
         quality_color = "#28a745"
@@ -88,7 +88,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
         quality = "préoccupant"
         quality_color = "#dc3545"
     
-    # Opening paragraph - contextual introduction
+    # Paragraphe d'ouverture - introduction contextuelle
     if score_global >= 70:
         opening = f"Le fonds **{fcp_name}** se distingue par un profil de risque **{quality}** (score global: {score_global:.1f}/100), reflétant une gestion rigoureuse et une maîtrise avancée des risques. "
     elif score_global >= 50:
@@ -96,7 +96,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
     else:
         opening = f"Le fonds **{fcp_name}** affiche un profil de risque **{quality}** (score global: {score_global:.1f}/100), nécessitant une vigilance accrue et un suivi rapproché des expositions. "
     
-    # Volatility analysis with context
+    # Analyse de la volatilité avec contexte
     vol_pct = risk_profile.get('volatility', 50)
     if vol_pct >= 70:
         vol_narrative = f"La **volatilité remarquablement contenue** ({volatility:.2f}%, score: {vol_pct:.0f}/100) témoigne d'une gestion prudente et d'une construction de portefeuille bien diversifiée, offrant un confort de détention appréciable pour les investisseurs."
@@ -105,7 +105,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
     else:
         vol_narrative = f"La **volatilité élevée** ({volatility:.2f}%, score: {vol_pct:.0f}/100) reflète une exposition significative aux fluctuations de marché, requérant une tolérance au risque importante et un horizon d'investissement approprié."
     
-    # Drawdown and resilience analysis
+    # Analyse du drawdown et de la résilience
     dd_pct = risk_profile.get('max_drawdown', 50)
     if dd_pct >= 70:
         dd_narrative = f"La **résilience exceptionnelle** face aux phases adverses (drawdown max: {abs(max_dd):.2f}%, score: {dd_pct:.0f}/100) démontre une capacité remarquable à préserver le capital en période de stress, caractéristique essentielle pour la confiance des porteurs."
@@ -114,7 +114,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
     else:
         dd_narrative = f"Les **drawdowns historiques importants** (max: {abs(max_dd):.2f}%, score: {dd_pct:.0f}/100) signalent un risque de perte en capital substantiel en période adverse, nécessitant une allocation prudente et une diversification appropriée."
     
-    # Pain Ratio and investor experience
+    # Pain Ratio et expérience de l'investisseur
     if pain_ratio > 2:
         pain_narrative = f"Le **Pain Ratio exceptionnel** ({pain_ratio:.2f}) révèle que le fonds compense largement la 'douleur' ressentie par l'investisseur lors des phases de drawdown par ses performances, un attribut hautement valorisé en gestion d'actifs."
     elif pain_ratio > 1:
@@ -122,7 +122,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
     else:
         pain_narrative = f"Le **Pain Ratio limité** ({pain_ratio:.2f}) indique que la douleur ressentie lors des drawdowns n'est pas suffisamment compensée par la performance, un point d'attention pour la satisfaction des investisseurs."
     
-    # Skewness and tail risk
+    # Skewness et risque de queue
     if skewness > 0.3:
         skew_narrative = f"L'**asymétrie positive marquée** (skewness: {skewness:.3f}) constitue un avantage significatif, avec un potentiel de gains extrêmes supérieur au risque de pertes catastrophiques - un profil recherché par les investisseurs avertis."
     elif abs(skewness) <= 0.3:
@@ -130,7 +130,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
     else:
         skew_narrative = f"L'**asymétrie négative** (skewness: {skewness:.3f}) constitue un signal d'alerte important, révélant un risque accru de pertes extrêmes ('tail risk') qui mérite une attention particulière dans l'évaluation du risque global."
     
-    # Sharpe ratio interpretation
+    # Interprétation du ratio de Sharpe
     if sharpe > 2:
         sharpe_text = f"un ratio de Sharpe exceptionnel ({sharpe:.2f})"
     elif sharpe > 1:
@@ -140,7 +140,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
     else:
         sharpe_text = f"un ratio de Sharpe négatif ({sharpe:.2f}), suggérant une sous-performance par rapport au taux sans risque"
     
-    # Build comprehensive analysis
+    # Construire l'analyse complète
     analysis_parts = [
         opening,
         "",
@@ -158,7 +158,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
         "",
     ]
     
-    # Add strengths section
+    # Ajouter la section des points forts
     if strengths:
         analysis_parts.extend([
             "**Points Forts Identifiés :**",
@@ -174,7 +174,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
             analysis_parts.append(f"- **{dim}** : Performance {strength_desc} (score: {score:.0f}/100)")
         analysis_parts.append("")
     
-    # Add weaknesses section
+    # Ajouter la section des points faibles
     if weaknesses:
         analysis_parts.extend([
             "**Points d'Attention :**",
@@ -190,7 +190,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
             analysis_parts.append(f"- **{dim}** : {weakness_desc} (score: {score:.0f}/100)")
         analysis_parts.append("")
     
-    # Allocation recommendation
+    # Recommandation d'allocation
     analysis_parts.append("**Recommandation d'Allocation :**")
     analysis_parts.append("")
     if score_global >= 70:
@@ -202,7 +202,7 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
     
     analysis_parts.append(recommendation)
     
-    # Final synthesis
+    # Synthèse finale
     analysis_parts.extend([
         "",
         "**Synthèse Décisionnelle :**",
@@ -220,6 +220,30 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
     
     return "\n".join(analysis_parts)
 
+def color_negative_red_positive_green(val):
+    """
+    Applique un style de couleur pour les valeurs numériques :
+    - Vert pour les valeurs positives
+    - Rouge pour les valeurs négatives
+    - Neutre pour zéro ou valeurs non numériques
+    """
+    try:
+        if pd.isna(val):
+            return ''
+        if isinstance(val, str):
+            # Essayer de parser si c'est une chaîne
+            val_clean = val.replace('%', '').replace('+', '').replace(',', '.').strip()
+            val = float(val_clean)
+        
+        if val > 0:
+            return 'background-color: #d4edda; color: #155724'  # Vert clair avec texte vert foncé
+        elif val < 0:
+            return 'background-color: #f8d7da; color: #721c24'  # Rouge clair avec texte rouge foncé
+        else:
+            return ''
+    except (ValueError, TypeError):
+        return ''
+
 # Configuration de la page
 st.set_page_config(
     page_title="Analyse FCP - Valeurs Liquidatives",
@@ -228,7 +252,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for simplified styling
+# CSS personnalisé pour un style simplifié
 st.markdown(f"""
 <style>
     .ranking-card {{
@@ -1363,8 +1387,7 @@ def main():
     st.markdown("#### 📋 Classement des FCP Sélectionnés")
     
     st.dataframe(
-        selected_ranking.style.background_gradient(subset=['Performance (%)'], cmap='RdYlGn')
-                          .background_gradient(subset=['Volatilité (%)'], cmap='RdYlGn_r')
+        selected_ranking.style.applymap(color_negative_red_positive_green, subset=['Performance (%)'])
                           .format({'Performance (%)': '{:+.2f}%', 'Volatilité (%)': '{:.2f}%'}),
         use_container_width=True,
         hide_index=True
@@ -1410,7 +1433,7 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         # Display as table with formatting
         st.markdown("##### 📊 Tableau des Performances Calendaires")
         st.dataframe(
-            calendar_df.style.background_gradient(cmap='RdYlGn', axis=None)
+            calendar_df.style.applymap(color_negative_red_positive_green)
                             .format("{:+.2f}%"),
             use_container_width=True
         )
@@ -1435,7 +1458,7 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         # Display as table with formatting
         st.markdown("##### 📊 Tableau des Performances Glissantes")
         st.dataframe(
-            rolling_df.style.background_gradient(cmap='RdYlGn', axis=None)
+            rolling_df.style.applymap(color_negative_red_positive_green)
                            .format(lambda x: f"{x:+.2f}%" if pd.notna(x) else "N/A"),
             use_container_width=True
         )
@@ -1610,12 +1633,10 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         stats_df = pd.DataFrame(stats_data)
         stats_df = stats_df.set_index('FCP')
         
-        # Formatage des nombres avec gradient de couleur vert/rouge
-        styled_stats = stats_df.style.format("{:.3f}").background_gradient(
-            subset=['Rendement Moyen (%)', 'Skewness'], 
-            cmap='RdYlGn',  # Rouge pour valeurs négatives, vert pour positives
-            vmin=-stats_df['Rendement Moyen (%)'].abs().max(),
-            vmax=stats_df['Rendement Moyen (%)'].abs().max()
+        # Formatage des nombres avec conditionnelle de couleur vert/rouge
+        styled_stats = stats_df.style.format("{:.3f}").applymap(
+            color_negative_red_positive_green, 
+            subset=['Rendement Moyen (%)', 'Skewness']
         )
         st.dataframe(styled_stats, use_container_width=True)
         
@@ -1740,13 +1761,13 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         risk_df = pd.DataFrame(risk_data)
         risk_df = risk_df.set_index('FCP')
         
-        # Formatage et affichage avec gradient de couleur
-        styled_risk = risk_df.style.format("{:.3f}").background_gradient(
-            subset=['Ratio de Sharpe'], 
-            cmap='RdYlGn'  # Vert pour valeurs élevées (bon), rouge pour faibles
-        ).background_gradient(
-            subset=['Max Drawdown (%)'], 
-            cmap='RdYlGn_r'  # Rouge pour valeurs très négatives (mauvais)
+        # Formatage et affichage avec formatage conditionnel de couleur
+        styled_risk = risk_df.style.format("{:.3f}").applymap(
+            color_negative_red_positive_green, 
+            subset=['Ratio de Sharpe']
+        ).applymap(
+            color_negative_red_positive_green, 
+            subset=['Max Drawdown (%)']
         )
         st.dataframe(styled_risk, use_container_width=True)
         
