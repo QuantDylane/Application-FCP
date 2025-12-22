@@ -1633,12 +1633,10 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         stats_df = pd.DataFrame(stats_data)
         stats_df = stats_df.set_index('FCP')
         
-        # Formatage des nombres avec gradient de couleur vert/rouge
-        styled_stats = stats_df.style.format("{:.3f}").background_gradient(
-            subset=['Rendement Moyen (%)', 'Skewness'], 
-            cmap='RdYlGn',  # Rouge pour valeurs négatives, vert pour positives
-            vmin=-stats_df['Rendement Moyen (%)'].abs().max(),
-            vmax=stats_df['Rendement Moyen (%)'].abs().max()
+        # Formatage des nombres avec conditionnelle de couleur vert/rouge
+        styled_stats = stats_df.style.format("{:.3f}").applymap(
+            color_negative_red_positive_green, 
+            subset=['Rendement Moyen (%)', 'Skewness']
         )
         st.dataframe(styled_stats, use_container_width=True)
         
@@ -1763,13 +1761,13 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         risk_df = pd.DataFrame(risk_data)
         risk_df = risk_df.set_index('FCP')
         
-        # Formatage et affichage avec gradient de couleur
-        styled_risk = risk_df.style.format("{:.3f}").background_gradient(
-            subset=['Ratio de Sharpe'], 
-            cmap='RdYlGn'  # Vert pour valeurs élevées (bon), rouge pour faibles
-        ).background_gradient(
-            subset=['Max Drawdown (%)'], 
-            cmap='RdYlGn_r'  # Rouge pour valeurs très négatives (mauvais)
+        # Formatage et affichage avec formatage conditionnel de couleur
+        styled_risk = risk_df.style.format("{:.3f}").applymap(
+            color_negative_red_positive_green, 
+            subset=['Ratio de Sharpe']
+        ).applymap(
+            color_negative_red_positive_green, 
+            subset=['Max Drawdown (%)']
         )
         st.dataframe(styled_risk, use_container_width=True)
         

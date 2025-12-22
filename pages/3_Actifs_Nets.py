@@ -1058,12 +1058,12 @@ def main():
                         df_risk_display['VaR 95% (%)'] = df_risk_display['VaR 95% (%)'].round(2)
                         
                         st.dataframe(
-                            df_risk_display.style.background_gradient(
-                                subset=['Max Drawdown (%)', 'VaR 95% (%)'], 
-                                cmap='RdYlGn_r'
-                            ).background_gradient(
-                                subset=['Downside Volatility (%)'], 
-                                cmap='RdYlGn_r'
+                            df_risk_display.style.applymap(
+                                color_negative_red_positive_green,
+                                subset=['Max Drawdown (%)', 'VaR 95% (%)']
+                            ).applymap(
+                                color_negative_red_positive_green,
+                                subset=['Downside Volatility (%)']
                             ),
                             use_container_width=True,
                             hide_index=True
