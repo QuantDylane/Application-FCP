@@ -220,6 +220,30 @@ def generate_llm_style_narrative(fcp_name, risk_profile, metrics, strengths, wea
     
     return "\n".join(analysis_parts)
 
+def color_negative_red_positive_green(val):
+    """
+    Applique un style de couleur pour les valeurs numériques :
+    - Vert pour les valeurs positives
+    - Rouge pour les valeurs négatives
+    - Neutre pour zéro ou valeurs non numériques
+    """
+    try:
+        if pd.isna(val):
+            return ''
+        if isinstance(val, str):
+            # Essayer de parser si c'est une chaîne
+            val_clean = val.replace('%', '').replace('+', '').replace(',', '.').strip()
+            val = float(val_clean)
+        
+        if val > 0:
+            return 'background-color: #d4edda; color: #155724'  # Vert clair avec texte vert foncé
+        elif val < 0:
+            return 'background-color: #f8d7da; color: #721c24'  # Rouge clair avec texte rouge foncé
+        else:
+            return ''
+    except (ValueError, TypeError):
+        return ''
+
 # Configuration de la page
 st.set_page_config(
     page_title="Analyse FCP - Valeurs Liquidatives",
@@ -1363,8 +1387,7 @@ def main():
     st.markdown("#### 📋 Classement des FCP Sélectionnés")
     
     st.dataframe(
-        selected_ranking.style.background_gradient(subset=['Performance (%)'], cmap='RdYlGn')
-                          .background_gradient(subset=['Volatilité (%)'], cmap='RdYlGn_r')
+        selected_ranking.style.applymap(color_negative_red_positive_green, subset=['Performance (%)'])
                           .format({'Performance (%)': '{:+.2f}%', 'Volatilité (%)': '{:.2f}%'}),
         use_container_width=True,
         hide_index=True
@@ -1410,7 +1433,7 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         # Display as table with formatting
         st.markdown("##### 📊 Tableau des Performances Calendaires")
         st.dataframe(
-            calendar_df.style.background_gradient(cmap='RdYlGn', axis=None)
+            calendar_df.style.applymap(color_negative_red_positive_green)
                             .format("{:+.2f}%"),
             use_container_width=True
         )
@@ -1435,7 +1458,7 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         # Display as table with formatting
         st.markdown("##### 📊 Tableau des Performances Glissantes")
         st.dataframe(
-            rolling_df.style.background_gradient(cmap='RdYlGn', axis=None)
+            rolling_df.style.applymap(color_negative_red_positive_green)
                            .format(lambda x: f"{x:+.2f}%" if pd.notna(x) else "N/A"),
             use_container_width=True
         )

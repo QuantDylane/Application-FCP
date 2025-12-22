@@ -102,6 +102,31 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
+def color_negative_red_positive_green(val):
+    """
+    Applique un style de couleur pour les valeurs numériques :
+    - Vert pour les valeurs positives
+    - Rouge pour les valeurs négatives
+    - Neutre pour zéro ou valeurs non numériques
+    """
+    try:
+        if pd.isna(val):
+            return ''
+        if isinstance(val, str):
+            # Essayer de parser si c'est une chaîne
+            val_clean = val.replace('%', '').replace('+', '').replace(',', '.').replace(' FCFA', '').strip()
+            val = float(val_clean)
+        
+        if val > 0:
+            return 'background-color: #d4edda; color: #155724'  # Vert clair avec texte vert foncé
+        elif val < 0:
+            return 'background-color: #f8d7da; color: #721c24'  # Rouge clair avec texte rouge foncé
+        else:
+            return ''
+    except (ValueError, TypeError):
+        return ''
+
+
 @st.cache_data
 def load_actifs_nets_data():
     """Charge les données d'actifs nets depuis CSV ou Excel"""
