@@ -433,9 +433,15 @@ def volatility_clustering(df, fcp_name, n_clusters=3, window=30):
     return dates, rolling_vol_clean.values, clusters
 
 
-def analyze_volatility_regimes(df, fcp_name, window=30):
+def analyze_volatility_regimes(df, fcp_name, window=30, n_clusters=3):
     """
     Analyse avancée des régimes de volatilité avec interprétation économique
+    
+    Args:
+        df: DataFrame with net asset values
+        fcp_name: Name of the FCP
+        window: Rolling window for volatility calculation (default: 30 days)
+        n_clusters: Number of volatility regimes to identify (default: 3)
     
     Returns:
         dict: Dictionnaire contenant toutes les analyses de régimes de volatilité
@@ -451,19 +457,29 @@ def analyze_volatility_regimes(df, fcp_name, window=30):
     # Préparation pour clustering
     X = rolling_vol_clean.values.reshape(-1, 1)
     
-    # KMeans clustering (3 régimes: faible, intermédiaire, élevé)
-    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+    # KMeans clustering with user-defined number of regimes
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     clusters = kmeans.fit_predict(X)
     
     # Récupération des centres et labélisation économique
     centers = kmeans.cluster_centers_.flatten()
     cluster_order = np.argsort(centers)
     
-    # Mapping économique: 0=Faible, 1=Intermédiaire, 2=Élevé
-    regime_mapping = {cluster_order[0]: 0, cluster_order[1]: 1, cluster_order[2]: 2}
+    # Mapping économique: ordre croissant de volatilité (0=plus faible, n-1=plus élevé)
+    regime_mapping = {cluster_order[i]: i for i in range(n_clusters)}
     labeled_clusters = np.array([regime_mapping[c] for c in clusters])
     
-    regime_names = {0: "Faible Volatilité", 1: "Volatilité Intermédiaire", 2: "Forte Volatilité"}
+    # Generate regime names dynamically based on number of clusters
+    if n_clusters == 2:
+        regime_names = {0: "Faible Volatilité", 1: "Forte Volatilité"}
+    elif n_clusters == 3:
+        regime_names = {0: "Faible Volatilité", 1: "Volatilité Intermédiaire", 2: "Forte Volatilité"}
+    elif n_clusters == 4:
+        regime_names = {0: "Très Faible Volatilité", 1: "Faible Volatilité", 2: "Volatilité Élevée", 3: "Très Forte Volatilité"}
+    elif n_clusters == 5:
+        regime_names = {0: "Très Faible Volatilité", 1: "Faible Volatilité", 2: "Volatilité Modérée", 3: "Volatilité Élevée", 4: "Très Forte Volatilité"}
+    else:
+        regime_names = {i: f"Régime {i+1}" for i in range(n_clusters)}
     
     # Dates correspondantes
     dates = df_indexed['Date'].iloc[rolling_vol_clean.index].values
@@ -488,7 +504,7 @@ def analyze_volatility_regimes(df, fcp_name, window=30):
     
     # Statistiques par régime
     regime_stats = {}
-    for regime_id in range(3):
+    for regime_id in range(n_clusters):
         regime_data = regime_df[regime_df['Regime'] == regime_id]
         
         regime_stats[regime_id] = {
@@ -503,7 +519,7 @@ def analyze_volatility_regimes(df, fcp_name, window=30):
         }
     
     # Analyse des transitions entre régimes
-    transitions = np.zeros((3, 3))
+    transitions = np.zeros((n_clusters, n_clusters))
     for i in range(len(labeled_clusters) - 1):
         from_regime = labeled_clusters[i]
         to_regime = labeled_clusters[i + 1]
@@ -531,7 +547,7 @@ def analyze_volatility_regimes(df, fcp_name, window=30):
     
     # Calcul de la persistance moyenne par régime
     persistence = {}
-    for regime_id in range(3):
+    for regime_id in range(n_clusters):
         regime_lengths = [seq['length'] for seq in regime_sequences if seq['regime'] == regime_id]
         persistence[regime_id] = {
             'avg_duration': np.mean(regime_lengths) if regime_lengths else 0,
@@ -541,7 +557,7 @@ def analyze_volatility_regimes(df, fcp_name, window=30):
     
     # Analyse risque-rendement par régime
     risk_return_analysis = {}
-    for regime_id in range(3):
+    for regime_id in range(n_clusters):
         regime_data = regime_df[regime_df['Regime'] == regime_id]
         if len(regime_data) > 0:
             # Returns are in percentage, convert to decimal for Sharpe ratio calculation
@@ -1154,7 +1170,63 @@ def main():
                 except (AttributeError, TypeError):
                     pass
         
-
+        # Paramètres d'analyse de volatilité
+        with st.expander("⚙️ Paramètres d'Analyse de Volatilité", expanded=False):
+            st.markdown("**Configuration des fenêtres d'analyse**")
+            
+            # Initialize session state for volatility parameters if not exists
+            if 'vl_volatility_window' not in st.session_state:
+                st.session_state.vl_volatility_window = 30
+            if 'vl_rolling_risk_window' not in st.session_state:
+                st.session_state.vl_rolling_risk_window = 60
+            if 'vl_n_clusters' not in st.session_state:
+                st.session_state.vl_n_clusters = 3
+            
+            volatility_window = st.slider(
+                "Fenêtre de volatilité (jours)",
+                min_value=5,
+                max_value=120,
+                value=st.session_state.vl_volatility_window,
+                step=5,
+                key="vl_vol_slider",
+                help="Période glissante pour le calcul de la volatilité et l'analyse des régimes. Une fenêtre plus courte (5-20 jours) détecte les changements rapides, une fenêtre plus longue (60-120 jours) lisse les variations."
+            )
+            st.session_state.vl_volatility_window = volatility_window
+            
+            rolling_risk_window = st.slider(
+                "Fenêtre d'indicateurs de risque (jours)",
+                min_value=20,
+                max_value=180,
+                value=st.session_state.vl_rolling_risk_window,
+                step=10,
+                key="vl_risk_slider",
+                help="Période pour les indicateurs de risque rolling (Sharpe, VaR, CVaR). Généralement 2-3 fois la fenêtre de volatilité pour une analyse plus stable."
+            )
+            st.session_state.vl_rolling_risk_window = rolling_risk_window
+            
+            n_clusters = st.slider(
+                "Nombre de régimes de volatilité",
+                min_value=2,
+                max_value=5,
+                value=st.session_state.vl_n_clusters,
+                step=1,
+                key="vl_clusters_slider",
+                help="Nombre de régimes de volatilité à identifier (2 = faible/élevé, 3 = faible/intermédiaire/élevé, etc.). Valeur recommandée : 3."
+            )
+            st.session_state.vl_n_clusters = n_clusters
+            
+            # Display current configuration
+            st.caption(f"📊 Configuration actuelle:")
+            st.caption(f"• Volatilité: fenêtre de {volatility_window} jours")
+            st.caption(f"• Risque: fenêtre de {rolling_risk_window} jours")
+            st.caption(f"• Régimes: {n_clusters} clusters")
+            
+            # Reset to defaults button
+            if st.button("🔄 Réinitialiser aux valeurs par défaut", key="vl_reset_volatility_params", use_container_width=True):
+                st.session_state.vl_volatility_window = 30
+                st.session_state.vl_rolling_risk_window = 60
+                st.session_state.vl_n_clusters = 3
+                st.rerun()
         
         # Save/Load selections
         with st.expander("💾 Sauvegarder/Charger la Sélection", expanded=False):
@@ -2033,7 +2105,13 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             )
             
             # Analyse des régimes de volatilité - UTILISE TOUTE L'HISTORIQUE
-            regime_analysis = analyze_volatility_regimes(full_df, fcp_for_analysis, window=30)
+            # Use the user-defined volatility window and number of clusters parameters
+            regime_analysis = analyze_volatility_regimes(
+                full_df, 
+                fcp_for_analysis, 
+                window=st.session_state.vl_volatility_window,
+                n_clusters=st.session_state.vl_n_clusters
+            )
             
             st.markdown("---")
             st.markdown("### 📋 Synthèse Exécutive")
@@ -2084,54 +2162,55 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             # Phrases prêtes à l'emploi pour le reporting
             signal_vigilance = ""
             signal_text = ""
+            n_clusters = st.session_state.vl_n_clusters
             
-            if current_regime == 0:  # Faible volatilité
+            # Determine regime type based on position (0 = lowest volatility, n-1 = highest)
+            if current_regime == 0:  # Lowest volatility regime
                 signal_text = "CONFORT"
                 signal_vigilance = f"""
                 <div class="insight-box">
                     <h4>✅ Signal de Confort</h4>
-                    <p><strong>Contexte favorable:</strong> Le fonds évolue actuellement dans un régime de <strong>faible volatilité</strong> 
-                    ({regime_stats[0]['avg_volatility']:.2f}%), représentant {regime_stats[0]['proportion']:.1f}% du temps historique.</p>
+                    <p><strong>Contexte favorable:</strong> Le fonds évolue actuellement dans un régime de <strong>{current_regime_name}</strong> 
+                    ({regime_stats[current_regime]['avg_volatility']:.2f}%), représentant {regime_stats[current_regime]['proportion']:.1f}% du temps historique.</p>
                     <ul>
-                        <li>Le fonds bénéficie actuellement d'un environnement de marché stable, avec une <strong>volatilité contenue à {regime_stats[0]['avg_volatility']:.2f}%.</strong></li>
+                        <li>Le fonds bénéficie actuellement d'un environnement de marché stable, avec une <strong>volatilité contenue à {regime_stats[current_regime]['avg_volatility']:.2f}%.</strong></li>
                         <li>Dans ces conditions de faible volatilité, le fonds génère un <strong>rendement quotidien moyen de {avg_return_current:+.3f}%</strong>, 
                         démontrant sa capacité à créer de la valeur en environnement calme.</li>
                         <li>L'analyse historique montre que ce régime de stabilité se maintient en moyenne pendant <strong>{avg_duration:.0f} jours ouvrés.</strong></li>
                     </ul>
                 </div>
                 """
-            elif current_regime == 1:  # Volatilité intermédiaire
+            elif current_regime == n_clusters - 1:  # Highest volatility regime
+                signal_text = "VIGILANCE ÉLEVÉE"
+                signal_vigilance = f"""
+                <div class="alert-box">
+                    <h4>🔴 Signal de Vigilance Élevée</h4>
+                    <p><strong>Contexte de stress:</strong> Le fonds évolue actuellement dans un régime de <strong>{current_regime_name}</strong> 
+                    ({regime_stats[current_regime]['avg_volatility']:.2f}%), situation historiquement observée {regime_stats[current_regime]['proportion']:.1f}% du temps.</p>
+                    <ul>
+                        <li>Le fonds traverse une période de <strong>volatilité élevée ({regime_stats[current_regime]['avg_volatility']:.2f}%)</strong>, 
+                        nécessitant un suivi rapproché des positions.</li>
+                        <li>En phase de stress, le fonds affiche un <strong>rendement quotidien moyen de {avg_return_current:+.3f}%</strong>, 
+                        avec un drawdown maximal observé de {regime_stats[current_regime]['max_drawdown']:.2f}%.</li>
+                        <li>Historiquement, ces épisodes de forte <strong>volatilité durent en moyenne {avg_duration:.0f} jours ouvrés</strong>, 
+                        avec {episodes} occurrences sur la période analysée.</li>
+                        <li>La résilience du fonds en période de stress est un facteur clé à surveiller pour évaluer la qualité de gestion du risque.</li>
+                    </ul>
+                </div>
+                """
+            else:  # Intermediate regime(s)
                 signal_text = "VIGILANCE MODÉRÉE"
                 signal_vigilance = f"""
                 <div class="interpretation-note">
                     <h4>⚠️ Signal de Vigilance Modérée</h4>
-                    <p><strong>Contexte en transition:</strong> Le fonds se trouve dans un régime de <strong>volatilité intermédiaire</strong> 
-                    ({regime_stats[1]['avg_volatility']:.2f}%), phase qui représente {regime_stats[1]['proportion']:.1f}% du temps historique.</p>
+                    <p><strong>Contexte en transition:</strong> Le fonds se trouve dans un régime de <strong>{current_regime_name}</strong> 
+                    ({regime_stats[current_regime]['avg_volatility']:.2f}%), phase qui représente {regime_stats[current_regime]['proportion']:.1f}% du temps historique.</p>
                     <ul>
-                        <li>Le fonds traverse actuellement une phase de <strong>volatilité modérée ({regime_stats[1]['avg_volatility']:.2f}%)</strong>, 
+                        <li>Le fonds traverse actuellement une phase de <strong>volatilité modérée ({regime_stats[current_regime]['avg_volatility']:.2f}%)</strong>, 
                         caractéristique des périodes de transition de marché.</li>
-                        <li>Dans ce régime intermédiaire, le <strong>rendement quotidien moyen s'établit à {avg_return_current:+.3f}%</strong>, 
+                        <li>Dans ce régime, le <strong>rendement quotidien moyen s'établit à {avg_return_current:+.3f}%</strong>, 
                         reflétant un équilibre risque-rendement ajusté.</li>
                         <li>La durée moyenne de ce type de période est de <strong>{avg_duration:.0f} jours</strong>, suggérant une situation temporaire.</li>
-                    </ul>
-                </div>
-                """
-            else:  # Forte volatilité
-                signal_text = "VIGILANCE ÉLEVÉE"
-                high_vol_freq = regime_stats[2]['proportion']
-                signal_vigilance = f"""
-                <div class="alert-box">
-                    <h4>🔴 Signal de Vigilance Élevée</h4>
-                    <p><strong>Contexte de stress:</strong> Le fonds évolue actuellement dans un régime de <strong>forte volatilité</strong> 
-                    ({regime_stats[2]['avg_volatility']:.2f}%), situation historiquement observée {regime_stats[2]['proportion']:.1f}% du temps.</p>
-                    <ul>
-                        <li>Le fonds traverse une période de <strong>volatilité élevée ({regime_stats[2]['avg_volatility']:.2f}%)</strong>, 
-                        nécessitant un suivi rapproché des positions.</li>
-                        <li>En phase de stress, le fonds affiche un <strong>rendement quotidien moyen de {avg_return_current:+.3f}%</strong>, 
-                        avec un drawdown maximal observé de {regime_stats[2]['max_drawdown']:.2f}%.</li>
-                        <li>Historiquement, les épisodes de forte <strong>volatilité durent en moyenne {avg_duration:.0f} jours ouvrés</strong>, 
-                        avec {episodes} occurrences sur la période analysée.</li>
-                        <li>La résilience du fonds en période de stress est un facteur clé à surveiller pour évaluer la qualité de gestion du risque.</li>
                     </ul>
                 </div>
                 """
@@ -2149,10 +2228,26 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             # Graphique temporel des régimes
             fig_regime_timeline = go.Figure()
             
-            regime_colors_map = {0: '#28a745', 1: '#ffc107', 2: '#dc3545'}
+            # Generate color palette dynamically based on number of clusters
+            # Green for low volatility -> Yellow -> Orange -> Red for high volatility
+            if n_clusters == 2:
+                regime_colors_map = {0: '#28a745', 1: '#dc3545'}
+            elif n_clusters == 3:
+                regime_colors_map = {0: '#28a745', 1: '#ffc107', 2: '#dc3545'}
+            elif n_clusters == 4:
+                regime_colors_map = {0: '#28a745', 1: '#a8d08d', 2: '#ff8c00', 3: '#dc3545'}
+            elif n_clusters == 5:
+                regime_colors_map = {0: '#28a745', 1: '#a8d08d', 2: '#ffc107', 3: '#ff8c00', 4: '#dc3545'}
+            else:
+                # Default: gradient from green to red
+                import matplotlib.cm as cm
+                import matplotlib.colors as mcolors
+                cmap = cm.get_cmap('RdYlGn_r', n_clusters)
+                regime_colors_map = {i: mcolors.rgb2hex(cmap(i)) for i in range(n_clusters)}
+            
             regime_names = regime_analysis['regime_names']
             
-            for regime_id in range(3):
+            for regime_id in range(n_clusters):
                 regime_data = regime_df[regime_df['Regime'] == regime_id]
                 fig_regime_timeline.add_trace(go.Scatter(
                     x=regime_data['Date'],
@@ -2164,9 +2259,9 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
                 ))
             
             fig_regime_timeline.update_layout(
-                title=f"Cycle de Volatilité et Régimes - {fcp_for_analysis}",
+                title=f"Cycle de Volatilité et Régimes - {fcp_for_analysis} (Fenêtre: {st.session_state.vl_volatility_window}j)",
                 xaxis_title="Date",
-                yaxis_title="Volatilité Glissante 30J (%)",
+                yaxis_title=f"Volatilité Glissante {st.session_state.vl_volatility_window}J (%)",
                 height=500,
                 template="plotly_white",
                 hovermode='closest',
@@ -2191,7 +2286,7 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             
             # Tableau récapitulatif par régime
             regime_summary = []
-            for regime_id in range(3):
+            for regime_id in range(n_clusters):
                 regime_stat = regime_stats[regime_id]
                 rr_analysis = regime_analysis['risk_return_analysis'][regime_id]
                 persistence = regime_analysis['persistence'][regime_id]
@@ -2216,11 +2311,13 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             with col1:
                 # Performance moyenne par régime
                 fig_perf_regime = go.Figure()
-                avg_returns = [regime_stats[i]['avg_return'] for i in range(3)]
-                colors_bars = ['#28a745', '#ffc107', '#dc3545']
+                avg_returns = [regime_stats[i]['avg_return'] for i in range(n_clusters)]
+                
+                # Use the same color mapping as the timeline chart
+                colors_bars = [regime_colors_map[i] for i in range(n_clusters)]
                 
                 fig_perf_regime.add_trace(go.Bar(
-                    x=[regime_names[i] for i in range(3)],
+                    x=[regime_names[i] for i in range(n_clusters)],
                     y=avg_returns,
                     marker_color=colors_bars,
                     text=[f"{val:+.3f}%" for val in avg_returns],
@@ -2241,10 +2338,10 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             with col2:
                 # Proportion du temps par régime
                 fig_time_regime = go.Figure()
-                proportions = [regime_stats[i]['proportion'] for i in range(3)]
+                proportions = [regime_stats[i]['proportion'] for i in range(n_clusters)]
                 
                 fig_time_regime.add_trace(go.Pie(
-                    labels=[regime_names[i] for i in range(3)],
+                    labels=[regime_names[i] for i in range(n_clusters)],
                     values=proportions,
                     marker=dict(colors=colors_bars),
                     textinfo='label+percent',
@@ -2269,8 +2366,8 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             
             fig_transition = go.Figure(data=go.Heatmap(
                 z=transition_probs * 100,
-                x=[regime_names[i] for i in range(3)],
-                y=[regime_names[i] for i in range(3)],
+                x=[regime_names[i] for i in range(n_clusters)],
+                y=[regime_names[i] for i in range(n_clusters)],
                 colorscale='Blues',
                 text=np.round(transition_probs * 100, 1),
                 texttemplate='%{text}%',
@@ -2289,7 +2386,7 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             st.plotly_chart(fig_transition, use_container_width=True)
             
             # Interprétation des transitions
-            max_persistence_regime = max(range(3), key=lambda i: transition_probs[i, i])
+            max_persistence_regime = max(range(n_clusters), key=lambda i: transition_probs[i, i])
             max_persistence_prob = transition_probs[max_persistence_regime, max_persistence_regime] * 100
             
             st.markdown(f"""
@@ -2314,10 +2411,10 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             with col1:
                 # Ratio de Sharpe par régime
                 fig_sharpe_regime = go.Figure()
-                sharpe_ratios = [regime_analysis['risk_return_analysis'][i]['sharpe_ratio'] for i in range(3)]
+                sharpe_ratios = [regime_analysis['risk_return_analysis'][i]['sharpe_ratio'] for i in range(n_clusters)]
                 
                 fig_sharpe_regime.add_trace(go.Bar(
-                    x=[regime_names[i] for i in range(3)],
+                    x=[regime_names[i] for i in range(n_clusters)],
                     y=sharpe_ratios,
                     marker_color=colors_bars,
                     text=[f"{val:.2f}" for val in sharpe_ratios],
@@ -2337,10 +2434,10 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             with col2:
                 # Drawdown maximal par régime
                 fig_dd_regime = go.Figure()
-                drawdowns = [regime_stats[i]['max_drawdown'] for i in range(3)]
+                drawdowns = [regime_stats[i]['max_drawdown'] for i in range(n_clusters)]
                 
                 fig_dd_regime.add_trace(go.Bar(
-                    x=[regime_names[i] for i in range(3)],
+                    x=[regime_names[i] for i in range(n_clusters)],
                     y=drawdowns,
                     marker_color=colors_bars,
                     text=[f"{val:.2f}%" for val in drawdowns],
@@ -2358,11 +2455,11 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
                 st.plotly_chart(fig_dd_regime, use_container_width=True)
             
             # Interprétation risque-rendement - Simplified presentation
-            best_sharpe_regime = max(range(3), key=lambda i: regime_analysis['risk_return_analysis'][i]['sharpe_ratio'])
-            worst_dd_regime = min(range(3), key=lambda i: regime_stats[i]['max_drawdown'])
+            best_sharpe_regime = max(range(n_clusters), key=lambda i: regime_analysis['risk_return_analysis'][i]['sharpe_ratio'])
+            worst_dd_regime = min(range(n_clusters), key=lambda i: regime_stats[i]['max_drawdown'])
             
             low_vol_return = regime_stats[0]['avg_return']
-            high_vol_return = regime_stats[2]['avg_return']
+            high_vol_return = regime_stats[n_clusters - 1]['avg_return']
             
             value_creation_text = "positive, démontrant une bonne capacité à créer de la valeur" if low_vol_return > 0 else "négative, suggérant des difficultés à capitaliser sur la stabilité"
             resilience_text = "résilient" if high_vol_return > -0.1 else "sous pression"
@@ -2371,13 +2468,13 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
 **🎯 Interprétation Risque-Rendement**
 
 **Création de valeur en période calme:**  
-En régime de faible volatilité, le fonds génère un rendement quotidien moyen de **{low_vol_return:+.3f}%**, 
+En régime de {regime_names[0]}, le fonds génère un rendement quotidien moyen de **{low_vol_return:+.3f}%**, 
 performance {value_creation_text} en environnement stable.
 
 **Résilience en période de stress:**  
-En régime de forte volatilité, le rendement moyen est de **{high_vol_return:+.3f}%**, 
+En régime de {regime_names[n_clusters - 1]}, le rendement moyen est de **{high_vol_return:+.3f}%**, 
 indiquant un fonds {resilience_text} face aux turbulences de marché. Le drawdown maximal de 
-**{regime_stats[2]['max_drawdown']:.2f}%** reflète l'exposition au risque extrême.
+**{regime_stats[n_clusters - 1]['max_drawdown']:.2f}%** reflète l'exposition au risque extrême.
 
 **Profil risque-rendement optimal:**  
 Le régime **{regime_names[best_sharpe_regime]}** offre le meilleur ratio de Sharpe 
@@ -2391,32 +2488,34 @@ indiquant la période où le rendement ajusté au risque est le plus favorable.
             st.markdown("---")
             st.markdown("### 🎲 Analyse de Stabilité du Profil de Risque")
             
-            high_vol_freq = regime_stats[2]['proportion']
-            high_vol_episodes = regime_analysis['persistence'][2]['episodes']
-            high_vol_avg_duration = regime_analysis['persistence'][2]['avg_duration']
-            high_vol_persistence = transition_probs[2, 2] * 100
+            # Use the highest volatility regime for stability analysis
+            high_vol_regime_id = n_clusters - 1
+            high_vol_freq = regime_stats[high_vol_regime_id]['proportion']
+            high_vol_episodes = regime_analysis['persistence'][high_vol_regime_id]['episodes']
+            high_vol_avg_duration = regime_analysis['persistence'][high_vol_regime_id]['avg_duration']
+            high_vol_persistence = transition_probs[high_vol_regime_id, high_vol_regime_id] * 100
             
             col1, col2, col3 = st.columns(3)
             
             with col1:
                 st.metric(
-                    "Fréquence Forte Volatilité",
+                    f"{regime_names[high_vol_regime_id]}",
                     f"{high_vol_freq:.1f}%",
-                    help="Pourcentage du temps passé en régime de forte volatilité"
+                    help=f"Pourcentage du temps passé en régime de {regime_names[high_vol_regime_id]}"
                 )
             
             with col2:
                 st.metric(
                     "Nombre d'Épisodes",
                     f"{high_vol_episodes}",
-                    help="Nombre d'occurrences de forte volatilité sur la période"
+                    help=f"Nombre d'occurrences de {regime_names[high_vol_regime_id]} sur la période"
                 )
             
             with col3:
                 st.metric(
                     "Persistance Moyenne",
                     f"{high_vol_avg_duration:.0f} jours",
-                    help="Durée moyenne d'un épisode de forte volatilité"
+                    help=f"Durée moyenne d'un épisode de {regime_names[high_vol_regime_id]}"
                 )
             
             # Score de stabilité
@@ -2427,15 +2526,15 @@ indiquant la période où le rendement ajusté au risque est le plus favorable.
             if stability_score >= 75:
                 stability_color = "#28a745"
                 stability_level = "Excellent"
-                stability_interpretation = "Le fonds présente un profil de risque très stable, avec des épisodes de forte volatilité rares et de courte durée."
+                stability_interpretation = f"Le fonds présente un profil de risque très stable, avec des épisodes de {regime_names[high_vol_regime_id]} rares et de courte durée."
             elif stability_score >= 50:
                 stability_color = "#ffc107"
                 stability_level = "Bon"
-                stability_interpretation = "Le fonds affiche une stabilité correcte, avec une exposition modérée aux périodes de forte volatilité."
+                stability_interpretation = f"Le fonds affiche une stabilité correcte, avec une exposition modérée aux périodes de {regime_names[high_vol_regime_id]}."
             else:
                 stability_color = "#dc3545"
                 stability_level = "À Surveiller"
-                stability_interpretation = "Le fonds présente une exposition significative aux régimes de forte volatilité, nécessitant une surveillance accrue."
+                stability_interpretation = f"Le fonds présente une exposition significative aux régimes de {regime_names[high_vol_regime_id]}, nécessitant une surveillance accrue."
             
             st.markdown(f"""
             <div class="ranking-card">
