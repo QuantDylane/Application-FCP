@@ -1213,6 +1213,6 @@ Pour toute question, suggestion ou problème :
 ---
 
 **Version** : 1.0
-**Date de dernière mise à jour** : Décembre 2024
+**Date de dernière mise à jour** : Décembre 2025
 
 © 2024 CGF BOURSE - Tous droits réservés
