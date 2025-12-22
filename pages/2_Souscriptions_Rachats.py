@@ -1,6 +1,6 @@
 """
-Souscriptions et Rachats Analysis Page
-Analyzes subscriptions and redemptions for FCP funds
+Page d'Analyse des Souscriptions et Rachats
+Analyse les souscriptions et rachats pour les fonds FCP
 """
 
 import streamlit as st
@@ -17,14 +17,14 @@ try:
 except ImportError:
     STATSMODELS_AVAILABLE = False
 
-# Constants
-MIN_SEASONALITY_PERIODS = 24  # Minimum observations required for seasonality analysis
-DEFAULT_RADAR_RANGE = 150  # Default maximum range for radar chart (normalized percentage)
-ALL_FCP_LABEL = "Tous les FCP"  # Label for aggregated FCP data option
-MILLIONS_DIVISOR = 1e6  # Divisor to convert amounts to millions
-HIGH_VOLATILITY_THRESHOLD = 50  # Threshold percentage for high volatility classification
+# Constantes
+MIN_SEASONALITY_PERIODS = 24  # Nombre minimum d'observations requises pour l'analyse de saisonnalité
+DEFAULT_RADAR_RANGE = 150  # Plage maximale par défaut pour le graphique radar (pourcentage normalisé)
+ALL_FCP_LABEL = "Tous les FCP"  # Label pour l'option de données FCP agrégées
+MILLIONS_DIVISOR = 1e6  # Diviseur pour convertir les montants en millions
+HIGH_VOLATILITY_THRESHOLD = 50  # Seuil de pourcentage pour la classification de volatilité élevée
 
-# Color Scheme
+# Schéma de couleurs
 PRIMARY_COLOR = "#114B80"    # Bleu profond — titres, boutons principaux
 SECONDARY_COLOR = "#567389"  # Bleu-gris — widgets, lignes, icônes
 ACCENT_COLOR = "#ACC7DF"     # Bleu clair — fonds de cartes, hover
@@ -37,7 +37,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for simplified styling
+# CSS personnalisé pour un style simplifié
 st.markdown(f"""
 <style>
     .ranking-card {{
@@ -104,7 +104,7 @@ st.markdown(f"""
 
 @st.cache_data
 def load_souscriptions_rachats_data():
-    """Load subscriptions and redemptions data from CSV or Excel"""
+    """Charge les données de souscriptions et rachats depuis CSV ou Excel"""
     data_file = os.getenv('FCP_DATA_FILE', 'data_fcp.xlsx')
     file_extension = os.path.splitext(data_file)[1].lower()
     
@@ -119,9 +119,9 @@ def load_souscriptions_rachats_data():
 
 
 def calculate_net_flows(df):
-    """Calculate net flows (subscriptions - redemptions)"""
+    """Calcule les flux nets (souscriptions - rachats)"""
     df_copy = df.copy()
-    # Create a signed amount column: positive for subscriptions, negative for redemptions
+    # Créer une colonne de montant signé : positif pour souscriptions, négatif pour rachats
     df_copy['Montant_Signe'] = df_copy.apply(
         lambda x: x['Montant'] if x['Opérations'] == 'Souscriptions' else -x['Montant'],
         axis=1
@@ -130,14 +130,14 @@ def calculate_net_flows(df):
 
 
 def calculate_growth_rates(series, period='M'):
-    """Calculate growth rates for a time series"""
+    """Calcule les taux de croissance pour une série temporelle"""
     if len(series) < 2:
         return pd.Series()
     return series.pct_change() * 100
 
 
 def main():
-    """Main function for the Souscriptions et Rachats page"""
+    """Fonction principale pour la page Souscriptions et Rachats"""
     st.header("💰 Analyse des Souscriptions et Rachats")
     
     # Load data
@@ -317,17 +317,17 @@ def main():
     collecte_status = "(collecte nette positive ✅)" if flux_net >= 0 else "(décollecte nette ⚠️)"
     taux_per_euro = taux_collecte/100
     
-    st.markdown(f"""
-    <div class="insight-box">
-        <h4>💡 Note de Synthèse</h4>
-        <p><strong>Performance Globale:</strong> Sur la période sélectionnée, l'ensemble des {num_fcps} FCP présente des flux nets de <strong>{flux_net_m:+.2f}M FCFA</strong> 
+    # Note de synthèse dépliable
+    with st.expander("💡 Note de Synthèse - Performance Globale", expanded=False):
+        st.markdown(f"""
+        **Performance Globale:** Sur la période sélectionnée, l'ensemble des {num_fcps} FCP présente des flux nets de **{flux_net_m:+.2f}M FCFA** 
         {collecte_status}. 
-        Le taux de collecte global est de <strong>{taux_collecte:.1f}%</strong>, indiquant que pour chaque FCFA racheté, 
-        <strong>{taux_per_euro:.2f}FCFA</strong> sont souscrits.</p>
-        <p>Cette analyse porte sur <strong>{nb_operations:,} opérations</strong> au total, permettant une vue d'ensemble complète 
-        de l'activité de souscriptions et rachats.</p>
-    </div>
-    """, unsafe_allow_html=True)
+        Le taux de collecte global est de **{taux_collecte:.1f}%**, indiquant que pour chaque FCFA racheté, 
+        **{taux_per_euro:.2f}FCFA** sont souscrits.
+        
+        Cette analyse porte sur **{nb_operations:,} opérations** au total, permettant une vue d'ensemble complète 
+        de l'activité de souscriptions et rachats.
+        """)
     
     # ===================
     # Section 2: Temporal Evolution
@@ -408,13 +408,13 @@ def main():
         negative_periods = (df_pivot['Flux Net'] < 0).sum()
         total_periods = len(df_pivot)
         
-        st.markdown(f"""
-        <div class="interpretation-note">
-        <strong>📊 Analyse de Tendance:</strong> Sur les {total_periods} périodes analysées, 
-        <strong>{positive_periods} périodes ({positive_periods/total_periods*100:.1f}%)</strong> présentent des flux nets positifs (collecte nette),
-        tandis que <strong>{negative_periods} périodes ({negative_periods/total_periods*100:.1f}%)</strong> montrent une décollecte nette.
-        </div>
-        """, unsafe_allow_html=True)
+        # Note d'analyse de tendance dépliable
+        with st.expander("📊 Analyse de Tendance", expanded=False):
+            st.markdown(f"""
+            Sur les {total_periods} périodes analysées, 
+            **{positive_periods} périodes ({positive_periods/total_periods*100:.1f}%)** présentent des flux nets positifs (collecte nette),
+            tandis que **{negative_periods} périodes ({negative_periods/total_periods*100:.1f}%)** montrent une décollecte nette.
+            """)
     
     with tab2:
         col1, col2 = st.columns(2)

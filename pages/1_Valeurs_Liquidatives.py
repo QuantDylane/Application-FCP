@@ -1534,13 +1534,13 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
     tab1, tab2, tab3 = st.tabs(["📈 Distributions, Stats & Corrélations", "⚠️ Risque", "🎯 Volatilité"])
     
     with tab1:
-        st.markdown("""
-        <div class="interpretation-note">
-            <strong>💡 Note de Synthèse:</strong> L'analyse des distributions permet de comprendre le comportement statistique 
+        # Note d'interprétation dépliable pour économiser l'espace
+        with st.expander("💡 Note de Synthèse: Analyse des Distributions", expanded=False):
+            st.markdown("""
+            L'analyse des distributions permet de comprendre le comportement statistique 
             des rendements. Une distribution normale (Skewness proche de 0, Kurtosis proche de 0) indique des variations régulières,
             tandis que des valeurs extrêmes suggèrent des comportements atypiques.
-        </div>
-        """, unsafe_allow_html=True)
+            """)
         
         col1, col2 = st.columns(2)
         
@@ -1610,8 +1610,13 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         stats_df = pd.DataFrame(stats_data)
         stats_df = stats_df.set_index('FCP')
         
-        # Formatage des nombres
-        styled_stats = stats_df.style.format("{:.3f}")
+        # Formatage des nombres avec gradient de couleur vert/rouge
+        styled_stats = stats_df.style.format("{:.3f}").background_gradient(
+            subset=['Rendement Moyen (%)', 'Skewness'], 
+            cmap='RdYlGn',  # Rouge pour valeurs négatives, vert pour positives
+            vmin=-stats_df['Rendement Moyen (%)'].abs().max(),
+            vmax=stats_df['Rendement Moyen (%)'].abs().max()
+        )
         st.dataframe(styled_stats, use_container_width=True)
         
         # Quartile analysis
@@ -1621,7 +1626,7 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         for fcp in selected_fcps:
             returns = filtered_df[fcp].pct_change().dropna() * 100
             q1 = returns.quantile(0.25)
-            q2 = returns.quantile(0.50)  # Median
+            q2 = returns.quantile(0.50)  # Médiane
             q3 = returns.quantile(0.75)
             quartile_data.append({
                 'FCP': fcp,
@@ -1634,12 +1639,12 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         df_quartiles = pd.DataFrame(quartile_data)
         st.dataframe(df_quartiles, use_container_width=True, hide_index=True)
         
-        st.markdown("""
-        <div class="interpretation-note">
-        <strong>💡 Interprétation:</strong> L'écart interquartile (IQR) mesure la dispersion centrale des rendements.
-        Un IQR faible indique des rendements plus concentrés et donc plus prévisibles.
-        </div>
-        """, unsafe_allow_html=True)
+        # Note d'interprétation dépliable
+        with st.expander("💡 Interprétation des Quartiles", expanded=False):
+            st.markdown("""
+            L'écart interquartile (IQR) mesure la dispersion centrale des rendements.
+            Un IQR faible indique des rendements plus concentrés et donc plus prévisibles.
+            """)
         
         # ========================================
         # ANALYSE DES CORRÉLATIONS
@@ -1647,13 +1652,13 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         st.markdown("---")
         st.markdown("### 🔗 Analyse des Corrélations")
         
-        st.markdown("""
-        <div class="interpretation-note">
-            <strong>💡 Note:</strong> L'analyse des corrélations entre les valeurs liquidatives des différents FCP 
+        # Note d'interprétation dépliable
+        with st.expander("💡 Note: Comprendre les Corrélations", expanded=False):
+            st.markdown("""
+            L'analyse des corrélations entre les valeurs liquidatives des différents FCP 
             permet d'identifier les interdépendances et opportunités de diversification. Une faible corrélation entre deux FCP 
             indique qu'ils évoluent de manière relativement indépendante.
-        </div>
-        """, unsafe_allow_html=True)
+            """)
         
         if len(selected_fcps) > 1:
             # Calculate correlation matrix
@@ -1706,26 +1711,25 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
                 bottom_corr['Corrélation'] = bottom_corr['Corrélation'].round(3)
                 st.dataframe(bottom_corr, use_container_width=True, hide_index=True)
             
-            # Interpretation
-            st.markdown("""
-            <div class="interpretation-note">
-            <strong>💡 Interprétation:</strong><br>
-            • <strong>Corrélation proche de 1:</strong> Les VL évoluent de manière très similaire - faible diversification<br>
-            • <strong>Corrélation proche de 0:</strong> Pas de relation linéaire - bonne opportunité de diversification<br>
-            • <strong>Corrélation négative:</strong> Les VL évoluent de manière opposée - excellente diversification
-            </div>
-            """, unsafe_allow_html=True)
+            # Interprétation dépliable
+            with st.expander("💡 Interprétation des Corrélations", expanded=False):
+                st.markdown("""
+                **Comprendre les corrélations:**
+                - **Corrélation proche de 1:** Les VL évoluent de manière très similaire - faible diversification
+                - **Corrélation proche de 0:** Pas de relation linéaire - bonne opportunité de diversification
+                - **Corrélation négative:** Les VL évoluent de manière opposée - excellente diversification
+                """)
         else:
             st.info("Sélectionnez au moins 2 FCP pour voir l'analyse de corrélation.")
     
     with tab2:
-        st.markdown("""
-        <div class="interpretation-note">
-            <strong>💡 Note de Synthèse:</strong> Les indicateurs de risque mesurent différents aspects de la volatilité 
+        # Note d'interprétation dépliable
+        with st.expander("💡 Note de Synthèse: Indicateurs de Risque", expanded=False):
+            st.markdown("""
+            Les indicateurs de risque mesurent différents aspects de la volatilité 
             et des pertes potentielles. Le Ratio de Sharpe évalue le rendement ajusté au risque, tandis que VaR et CVaR 
             quantifient les pertes extrêmes possibles.
-        </div>
-        """, unsafe_allow_html=True)
+            """)
         
         risk_data = []
         for fcp in selected_fcps:
@@ -1736,8 +1740,14 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         risk_df = pd.DataFrame(risk_data)
         risk_df = risk_df.set_index('FCP')
         
-        # Formatage et affichage
-        styled_risk = risk_df.style.format("{:.3f}")
+        # Formatage et affichage avec gradient de couleur
+        styled_risk = risk_df.style.format("{:.3f}").background_gradient(
+            subset=['Ratio de Sharpe'], 
+            cmap='RdYlGn'  # Vert pour valeurs élevées (bon), rouge pour faibles
+        ).background_gradient(
+            subset=['Max Drawdown (%)'], 
+            cmap='RdYlGn_r'  # Rouge pour valeurs très négatives (mauvais)
+        )
         st.dataframe(styled_risk, use_container_width=True)
         
         # Visualizations

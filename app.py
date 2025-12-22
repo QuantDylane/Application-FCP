@@ -2,15 +2,15 @@ import streamlit as st
 import pandas as pd
 import os
 
-# Constants
+# Constantes
 DATA_FILE = os.getenv('FCP_DATA_FILE', 'data_fcp.xlsx')
-DEFAULT_SHEET_NAME = 'Valeurs Liquidatives'  # Default sheet for data loading
+DEFAULT_SHEET_NAME = 'Valeurs Liquidatives'  # Feuille par défaut pour le chargement des données
 
-# Detect file type
+# Détection du type de fichier
 FILE_EXTENSION = os.path.splitext(DATA_FILE)[1].lower()
 IS_CSV = FILE_EXTENSION == '.csv'
 
-# Color Scheme
+# Schéma de couleurs
 PRIMARY_COLOR = "#114B80"    # Bleu profond — titres, boutons principaux
 SECONDARY_COLOR = "#567389"  # Bleu-gris — widgets, lignes, icônes
 ACCENT_COLOR = "#ACC7DF"     # Bleu clair — fonds de cartes, hover
@@ -23,7 +23,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS pour améliorer l'esthétique
+# CSS personnalisé pour améliorer l'esthétique
 st.markdown(f"""
 <style>
     .main-header {{
