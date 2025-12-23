@@ -158,43 +158,83 @@ def main():
         with tab1:
             st.markdown("##### Vue Hiérarchique - Treemap")
             
-            # Préparer les données pour le treemap
-            treemap_data = fcp_data.copy()
-            treemap_data = treemap_data[treemap_data['Pourcentage'] > 0.01]  # Filtrer petites valeurs
+            # Créer des treemaps séparés pour Actions et Obligations
             
-            # Créer une hiérarchie pour le treemap
-            treemap_data['Label'] = treemap_data.apply(
-                lambda row: f"{row['Classe']}",
-                axis=1
-            )
+            # Treemap Actions: Pays → Secteur BRVM → Action
+            actions_data = fcp_data[fcp_data['Classe'] == 'Actions'].copy()
+            if not actions_data.empty and actions_data['Pourcentage'].sum() > 0:
+                actions_data = actions_data[actions_data['Pourcentage'] > 0.01]  # Filtrer petites valeurs
+                
+                # Créer l'identifiant unique pour chaque ligne (action)
+                actions_data['Action_ID'] = actions_data['Pays'] + ' - ' + actions_data['Secteur']
+                
+                st.markdown("**Sous-portefeuille Actions**")
+                st.markdown("_Hiérarchie: Pays → Secteur BRVM → Action_")
+                
+                # Créer le treemap pour Actions
+                # Couleur par contribution (ici on utilise le Pourcentage comme proxy)
+                fig_actions = px.treemap(
+                    actions_data,
+                    path=['Pays', 'Secteur', 'Action_ID'],
+                    values='Pourcentage',
+                    title=f'Composition Actions de {selected_fcp}',
+                    color='Pourcentage',
+                    color_continuous_scale='RdYlGn',
+                    height=400
+                )
+                
+                fig_actions.update_traces(
+                    textinfo="label+percent parent",
+                    hovertemplate='<b>%{label}</b><br>Pourcentage: %{value:.2f}%<extra></extra>'
+                )
+                
+                fig_actions.update_layout(
+                    margin=dict(t=50, l=0, r=0, b=0)
+                )
+                
+                st.plotly_chart(fig_actions, use_container_width=True)
             
-            # Ajouter des détails selon la classe
-            treemap_data['Detail'] = treemap_data.apply(
-                lambda row: (
-                    f"{row['Secteur']} - {row['Pays']}" if row['Classe'] == 'Actions' and pd.notna(row['Secteur'])
-                    else f"{row['Secteur Obligation']} - {row['Pays']} ({row['Cotation']})" if row['Classe'] == 'Obligations' and pd.notna(row['Secteur Obligation'])
-                    else row['Classe']
-                ),
-                axis=1
-            )
-            
-            # Créer le treemap
-            fig_treemap = px.treemap(
-                treemap_data,
-                path=['Label', 'Detail'],
-                values='Pourcentage',
-                title=f'Composition de {selected_fcp}',
-                color='Pourcentage',
-                color_continuous_scale='Blues',
-                height=600
-            )
-            
-            fig_treemap.update_traces(
-                textinfo="label+percent parent",
-                hovertemplate='<b>%{label}</b><br>Pourcentage: %{value:.2f}%<extra></extra>'
-            )
-            
-            st.plotly_chart(fig_treemap, use_container_width=True)
+            # Treemap Obligations: Secteur → Cotation → Pays → Obligation
+            obligations_data = fcp_data[fcp_data['Classe'] == 'Obligations'].copy()
+            if not obligations_data.empty and obligations_data['Pourcentage'].sum() > 0:
+                obligations_data = obligations_data[obligations_data['Pourcentage'] > 0.01]  # Filtrer petites valeurs
+                
+                # Créer l'identifiant unique pour chaque ligne (obligation)
+                obligations_data['Obligation_ID'] = (
+                    obligations_data['Secteur Obligation'] + ' - ' + 
+                    obligations_data['Cotation'] + ' - ' + 
+                    obligations_data['Pays']
+                )
+                
+                # Pour la durée, on utilise le Pourcentage comme proxy (à défaut de données de Duration)
+                # Une alternative serait de calculer une pseudo-duration basée sur d'autres critères
+                obligations_data['Duration_proxy'] = obligations_data['Pourcentage']
+                
+                st.markdown("**Sous-portefeuille Obligations**")
+                st.markdown("_Hiérarchie: Secteur → Cotation → Pays → Obligation_")
+                
+                # Créer le treemap pour Obligations
+                # Couleur par Duration (proxy)
+                fig_obligations = px.treemap(
+                    obligations_data,
+                    path=['Secteur Obligation', 'Cotation', 'Pays', 'Obligation_ID'],
+                    values='Pourcentage',
+                    title=f'Composition Obligations de {selected_fcp}',
+                    color='Duration_proxy',
+                    color_continuous_scale='Blues',
+                    height=400
+                )
+                
+                fig_obligations.update_traces(
+                    textinfo="label+percent parent",
+                    hovertemplate='<b>%{label}</b><br>Pourcentage: %{value:.2f}%<extra></extra>'
+                )
+                
+                fig_obligations.update_layout(
+                    margin=dict(t=50, l=0, r=0, b=0)
+                )
+                
+                st.plotly_chart(fig_obligations, use_container_width=True)
         
         with tab2:
             st.markdown("##### Vue Radiale - Sunburst")
@@ -243,19 +283,24 @@ def main():
             
             # Afficher par classe
             for classe in allocation_classe['Classe']:
-                with st.expander(f"{classe} ({allocation_classe[allocation_classe['Classe']==classe]['Pourcentage'].values[0]:.2f}%)"):
+                classe_total = allocation_classe[allocation_classe['Classe']==classe]['Pourcentage'].values[0]
+                with st.expander(f"{classe} ({classe_total:.2f}%)"):
                     classe_data = fcp_data[fcp_data['Classe'] == classe].copy()
                     
                     if classe == 'Actions':
                         # Regrouper par secteur
                         secteur_data = classe_data.groupby('Secteur')['Pourcentage'].sum().reset_index()
                         secteur_data = secteur_data.sort_values('Pourcentage', ascending=False)
+                        # Ajouter la colonne Proportion (pourcentage dans la poche Actions)
+                        secteur_data['Proportion (%)'] = (secteur_data['Pourcentage'] / classe_total * 100).round(2)
                         st.markdown("**Par Secteur:**")
                         st.dataframe(secteur_data, use_container_width=True, hide_index=True)
                         
                         # Regrouper par pays
                         pays_data = classe_data.groupby('Pays')['Pourcentage'].sum().reset_index()
                         pays_data = pays_data.sort_values('Pourcentage', ascending=False)
+                        # Ajouter la colonne Proportion (pourcentage dans la poche Actions)
+                        pays_data['Proportion (%)'] = (pays_data['Pourcentage'] / classe_total * 100).round(2)
                         st.markdown("**Par Pays:**")
                         st.dataframe(pays_data, use_container_width=True, hide_index=True)
                     
@@ -263,18 +308,24 @@ def main():
                         # Regrouper par secteur
                         secteur_data = classe_data.groupby('Secteur Obligation')['Pourcentage'].sum().reset_index()
                         secteur_data = secteur_data.sort_values('Pourcentage', ascending=False)
+                        # Ajouter la colonne Proportion (pourcentage dans la poche Obligations)
+                        secteur_data['Proportion (%)'] = (secteur_data['Pourcentage'] / classe_total * 100).round(2)
                         st.markdown("**Par Secteur:**")
                         st.dataframe(secteur_data, use_container_width=True, hide_index=True)
                         
                         # Regrouper par cotation
                         cotation_data = classe_data.groupby('Cotation')['Pourcentage'].sum().reset_index()
                         cotation_data = cotation_data.sort_values('Pourcentage', ascending=False)
+                        # Ajouter la colonne Proportion (pourcentage dans la poche Obligations)
+                        cotation_data['Proportion (%)'] = (cotation_data['Pourcentage'] / classe_total * 100).round(2)
                         st.markdown("**Par Cotation:**")
                         st.dataframe(cotation_data, use_container_width=True, hide_index=True)
                         
                         # Regrouper par pays
                         pays_data = classe_data.groupby('Pays')['Pourcentage'].sum().reset_index()
                         pays_data = pays_data.sort_values('Pourcentage', ascending=False)
+                        # Ajouter la colonne Proportion (pourcentage dans la poche Obligations)
+                        pays_data['Proportion (%)'] = (pays_data['Pourcentage'] / classe_total * 100).round(2)
                         st.markdown("**Par Pays:**")
                         st.dataframe(pays_data, use_container_width=True, hide_index=True)
     
@@ -474,14 +525,14 @@ def main():
     # Tableau récapitulatif
     st.markdown("##### Tableau Récapitulatif")
     
-    # Ajouter des couleurs conditionnelles
+    # Formater les colonnes sans background_gradient (nécessite matplotlib)
     st.dataframe(
         df_summary.style.format({
             'Actions (%)': '{:.1f}',
             'Obligations (%)': '{:.1f}',
             'OPCVM (%)': '{:.1f}',
             'Liquidités (%)': '{:.1f}'
-        }).background_gradient(subset=['Actions (%)', 'Obligations (%)'], cmap='RdYlGn', vmin=0, vmax=100),
+        }),
         use_container_width=True,
         hide_index=True
     )
