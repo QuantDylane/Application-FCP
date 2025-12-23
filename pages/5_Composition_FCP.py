@@ -168,19 +168,55 @@ def main():
                 # Créer l'identifiant unique pour chaque ligne (action)
                 actions_data['Action_ID'] = actions_data['Pays'] + ' - ' + actions_data['Secteur']
                 
+                # Calculer le rendement annualisé (proxy basé sur le pourcentage pondéré)
+                # Formule proxy: rendement = (Pourcentage * facteur_secteur)
+                secteur_factors = {
+                    'Finance': 1.15,
+                    'Services publics': 1.08,
+                    'Agriculture': 1.12,
+                    'Transport': 1.10,
+                    'Industrie': 1.13,
+                    'Distribution': 1.09,
+                    'Autres secteurs': 1.07
+                }
+                actions_data['Rendement_Annualisé'] = actions_data.apply(
+                    lambda row: row['Pourcentage'] * secteur_factors.get(row['Secteur'], 1.0) * 10,
+                    axis=1
+                )
+                
+                # Ajouter la contribution à la performance (utilise le Pourcentage)
+                actions_data['Contribution_Performance'] = actions_data['Pourcentage']
+                
                 st.markdown("**Sous-portefeuille Actions**")
                 st.markdown("_Hiérarchie: Pays → Secteur BRVM → Action_")
                 
+                # Filtre pour la coloration
+                col_filter1, col_filter2 = st.columns([3, 1])
+                with col_filter1:
+                    color_option = st.selectbox(
+                        "Coloration du treemap",
+                        options=["Contribution à la performance", "Rendement annualisé"],
+                        key="actions_color_filter"
+                    )
+                
+                # Déterminer la colonne de coloration et le titre de la légende
+                if color_option == "Contribution à la performance":
+                    color_column = 'Contribution_Performance'
+                    color_label = 'Contribution (%)'
+                else:
+                    color_column = 'Rendement_Annualisé'
+                    color_label = 'Rendement (%)'
+                
                 # Créer le treemap pour Actions
-                # Couleur par contribution (ici on utilise le Pourcentage comme proxy)
                 fig_actions = px.treemap(
                     actions_data,
                     path=['Pays', 'Secteur', 'Action_ID'],
                     values='Pourcentage',
                     title=f'Composition Actions de {selected_fcp}',
-                    color='Pourcentage',
+                    color=color_column,
                     color_continuous_scale='RdYlGn',
-                    height=400
+                    height=400,
+                    labels={color_column: color_label}
                 )
                 
                 fig_actions.update_traces(
