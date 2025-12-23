@@ -171,7 +171,7 @@ def main():
     st.subheader("📑 Pages d'Analyse Disponibles")
     st.markdown("Utilisez la barre latérale pour naviguer entre les différentes pages d'analyse.")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("""
@@ -184,6 +184,20 @@ def main():
                 <li>Distributions et statistiques</li>
                 <li>Indicateurs de risque avancés</li>
                 <li>Clusters de volatilité</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="page-card">
+            <h3>💼 Actifs Nets</h3>
+            <p>Analyse des actifs nets sous gestion :</p>
+            <ul>
+                <li>Évolution et répartition des actifs</li>
+                <li>Analyse de croissance et tendances</li>
+                <li>Comparaisons et classements</li>
+                <li>Statistiques avancées</li>
+                <li>Corrélation avec les flux</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -202,18 +216,17 @@ def main():
             </ul>
         </div>
         """, unsafe_allow_html=True)
-    
-    with col3:
+        
         st.markdown("""
         <div class="page-card">
-            <h3>💼 Actifs Nets</h3>
-            <p>Analyse des actifs nets sous gestion :</p>
+            <h3>🥧 Composition FCP</h3>
+            <p>Analyse de la composition des fonds :</p>
             <ul>
-                <li>Évolution et répartition des actifs</li>
-                <li>Analyse de croissance et tendances</li>
-                <li>Comparaisons et classements</li>
-                <li>Statistiques avancées</li>
-                <li>Corrélation avec les flux</li>
+                <li>Répartition par classe d'actifs</li>
+                <li>Visualisations interactives (Treemap, Sunburst)</li>
+                <li>Décomposition Actions (secteurs, pays)</li>
+                <li>Décomposition Obligations (secteurs, cotation)</li>
+                <li>Comparaison avec benchmarks</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
