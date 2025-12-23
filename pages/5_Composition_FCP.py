@@ -39,22 +39,52 @@ st.markdown(f"""
 @st.cache_data
 def load_composition_data():
     """Charge les données de composition"""
-    df = pd.read_excel(DATA_FILE, sheet_name='Composition FCP')
-    return df
+    try:
+        df = pd.read_excel(DATA_FILE, sheet_name='Composition FCP')
+        if df.empty:
+            st.error("La feuille 'Composition FCP' est vide.")
+            return pd.DataFrame()
+        return df
+    except FileNotFoundError:
+        st.error(f"Fichier {DATA_FILE} introuvable.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Erreur lors du chargement de la composition: {str(e)}")
+        return pd.DataFrame()
 
 @st.cache_data
 def load_benchmarks():
     """Charge les données des benchmarks"""
-    df = pd.read_excel(DATA_FILE, sheet_name='Benchmarks')
-    df['Date'] = pd.to_datetime(df['Date'])
-    return df
+    try:
+        df = pd.read_excel(DATA_FILE, sheet_name='Benchmarks')
+        if df.empty:
+            st.error("La feuille 'Benchmarks' est vide.")
+            return pd.DataFrame()
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        return df
+    except FileNotFoundError:
+        st.error(f"Fichier {DATA_FILE} introuvable.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des benchmarks: {str(e)}")
+        return pd.DataFrame()
 
 @st.cache_data
 def load_vl_data():
     """Charge les valeurs liquidatives"""
-    df = pd.read_excel(DATA_FILE, sheet_name='Valeurs Liquidatives')
-    df['Date'] = pd.to_datetime(df['Date'])
-    return df
+    try:
+        df = pd.read_excel(DATA_FILE, sheet_name='Valeurs Liquidatives')
+        if df.empty:
+            st.error("La feuille 'Valeurs Liquidatives' est vide.")
+            return pd.DataFrame()
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        return df
+    except FileNotFoundError:
+        st.error(f"Fichier {DATA_FILE} introuvable.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des valeurs liquidatives: {str(e)}")
+        return pd.DataFrame()
 
 # Application principale
 def main():
@@ -71,8 +101,17 @@ def main():
         df_benchmarks = load_benchmarks()
         df_vl = load_vl_data()
     
+    # Vérifier que les données sont chargées
+    if df_composition.empty or df_benchmarks.empty or df_vl.empty:
+        st.error("Impossible de charger les données. Veuillez vérifier que le fichier data_fcp.xlsx contient toutes les feuilles requises.")
+        return
+    
     # Obtenir la liste des FCPs
     fcps = sorted(df_composition['FCP'].unique())
+    
+    if len(fcps) == 0:
+        st.error("Aucun FCP trouvé dans les données de composition.")
+        return
     
     st.markdown("---")
     
@@ -90,6 +129,11 @@ def main():
         
         # Informations du FCP
         fcp_data = df_composition[df_composition['FCP'] == selected_fcp]
+        
+        if fcp_data.empty:
+            st.error(f"Aucune donnée de composition trouvée pour {selected_fcp}")
+            return
+            
         fcp_type = fcp_data['Type FCP'].iloc[0]
         
         st.markdown(f"""
@@ -264,91 +308,127 @@ def main():
     fcp_vl = fcp_vl[fcp_vl[selected_fcp].notna()]
     fcp_vl = fcp_vl.rename(columns={selected_fcp: 'VL'})
     
-    # Normaliser à 100 au début
-    fcp_vl['VL_norm'] = (fcp_vl['VL'] / fcp_vl['VL'].iloc[0]) * 100
-    
-    # Normaliser les benchmarks à partir de la date de début du FCP
-    bench_data = df_benchmarks[df_benchmarks['Date'] >= fcp_vl['Date'].min()].copy()
-    bench_data['Bench_Oblig_norm'] = (bench_data['Benchmark Obligataire'] / bench_data['Benchmark Obligataire'].iloc[0]) * 100
-    bench_data['Bench_Actions_norm'] = (bench_data['Benchmark Actions'] / bench_data['Benchmark Actions'].iloc[0]) * 100
-    
-    # Créer le graphique
-    fig_bench = go.Figure()
-    
-    fig_bench.add_trace(go.Scatter(
-        x=fcp_vl['Date'],
-        y=fcp_vl['VL_norm'],
-        name=selected_fcp,
-        line=dict(color=PRIMARY_COLOR, width=3)
-    ))
-    
-    if actions_pct > 0:
-        fig_bench.add_trace(go.Scatter(
-            x=bench_data['Date'],
-            y=bench_data['Bench_Actions_norm'],
-            name='Benchmark Actions',
-            line=dict(color='green', width=2, dash='dash')
-        ))
-    
-    if obligations_pct > 0:
-        fig_bench.add_trace(go.Scatter(
-            x=bench_data['Date'],
-            y=bench_data['Bench_Oblig_norm'],
-            name='Benchmark Obligataire',
-            line=dict(color='orange', width=2, dash='dash')
-        ))
-    
-    fig_bench.update_layout(
-        title=f'Performance de {selected_fcp} vs Benchmarks (base 100)',
-        xaxis_title='Date',
-        yaxis_title='Performance Indexée (base 100)',
-        hovermode='x unified',
-        height=500,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
-    )
-    
-    st.plotly_chart(fig_bench, use_container_width=True)
-    
-    # Statistiques de performance
-    st.markdown("##### Statistiques de Performance")
-    
-    # Calculer les rendements
-    fcp_return = ((fcp_vl['VL'].iloc[-1] / fcp_vl['VL'].iloc[0]) - 1) * 100
-    bench_oblig_return = ((bench_data['Benchmark Obligataire'].iloc[-1] / bench_data['Benchmark Obligataire'].iloc[0]) - 1) * 100
-    bench_actions_return = ((bench_data['Benchmark Actions'].iloc[-1] / bench_data['Benchmark Actions'].iloc[0]) - 1) * 100
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric(
-            f"Rendement {selected_fcp}",
-            f"{fcp_return:.2f}%",
-            help=f"Rendement cumulé depuis {fcp_vl['Date'].min().strftime('%Y-%m-%d')}"
-        )
-    
-    with col2:
-        if obligations_pct > 0:
-            st.metric(
-                "Benchmark Obligataire",
-                f"{bench_oblig_return:.2f}%",
-                delta=f"{fcp_return - bench_oblig_return:.2f}% vs FCP",
-                help="Rendement du benchmark obligataire sur la même période"
+    if len(fcp_vl) == 0:
+        st.warning(f"Aucune donnée de valeur liquidative disponible pour {selected_fcp}")
+    else:
+        # Normaliser à 100 au début (avec vérification division par zéro)
+        if fcp_vl['VL'].iloc[0] != 0:
+            fcp_vl['VL_norm'] = (fcp_vl['VL'] / fcp_vl['VL'].iloc[0]) * 100
+        else:
+            st.error(f"La première valeur liquidative de {selected_fcp} est zéro.")
+            return
+        
+        # Normaliser les benchmarks à partir de la date de début du FCP
+        bench_data = df_benchmarks[df_benchmarks['Date'] >= fcp_vl['Date'].min()].copy()
+        
+        if len(bench_data) == 0:
+            st.warning("Aucune donnée de benchmark disponible pour la période du FCP")
+        else:
+            # Vérifier et normaliser les benchmarks
+            if bench_data['Benchmark Obligataire'].iloc[0] != 0:
+                bench_data['Bench_Oblig_norm'] = (bench_data['Benchmark Obligataire'] / bench_data['Benchmark Obligataire'].iloc[0]) * 100
+            else:
+                bench_data['Bench_Oblig_norm'] = 100
+                
+            if bench_data['Benchmark Actions'].iloc[0] != 0:
+                bench_data['Bench_Actions_norm'] = (bench_data['Benchmark Actions'] / bench_data['Benchmark Actions'].iloc[0]) * 100
+            else:
+                bench_data['Bench_Actions_norm'] = 100
+            
+            # Créer le graphique
+            fig_bench = go.Figure()
+            
+            fig_bench.add_trace(go.Scatter(
+                x=fcp_vl['Date'],
+                y=fcp_vl['VL_norm'],
+                name=selected_fcp,
+                line=dict(color=PRIMARY_COLOR, width=3)
+            ))
+            
+            if actions_pct > 0:
+                fig_bench.add_trace(go.Scatter(
+                    x=bench_data['Date'],
+                    y=bench_data['Bench_Actions_norm'],
+                    name='Benchmark Actions',
+                    line=dict(color='green', width=2, dash='dash')
+                ))
+            
+            if obligations_pct > 0:
+                fig_bench.add_trace(go.Scatter(
+                    x=bench_data['Date'],
+                    y=bench_data['Bench_Oblig_norm'],
+                    name='Benchmark Obligataire',
+                    line=dict(color='orange', width=2, dash='dash')
+                ))
+            
+            fig_bench.update_layout(
+                title=f'Performance de {selected_fcp} vs Benchmarks (base 100)',
+                xaxis_title='Date',
+                yaxis_title='Performance Indexée (base 100)',
+                hovermode='x unified',
+                height=500,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
+                )
             )
-    
-    with col3:
-        if actions_pct > 0:
-            st.metric(
-                "Benchmark Actions",
-                f"{bench_actions_return:.2f}%",
-                delta=f"{fcp_return - bench_actions_return:.2f}% vs FCP",
-                help="Rendement du benchmark actions sur la même période"
-            )
+            
+            st.plotly_chart(fig_bench, use_container_width=True)
+            
+            st.plotly_chart(fig_bench, use_container_width=True)
+            
+            # Statistiques de performance
+            st.markdown("##### Statistiques de Performance")
+            
+            # Calculer les rendements avec vérification
+            if len(fcp_vl) > 0 and fcp_vl['VL'].iloc[0] != 0 and fcp_vl['VL'].iloc[-1] != 0:
+                fcp_return = ((fcp_vl['VL'].iloc[-1] / fcp_vl['VL'].iloc[0]) - 1) * 100
+            else:
+                fcp_return = 0.0
+                
+            if len(bench_data) > 0:
+                if bench_data['Benchmark Obligataire'].iloc[0] != 0 and bench_data['Benchmark Obligataire'].iloc[-1] != 0:
+                    bench_oblig_return = ((bench_data['Benchmark Obligataire'].iloc[-1] / bench_data['Benchmark Obligataire'].iloc[0]) - 1) * 100
+                else:
+                    bench_oblig_return = 0.0
+                    
+                if bench_data['Benchmark Actions'].iloc[0] != 0 and bench_data['Benchmark Actions'].iloc[-1] != 0:
+                    bench_actions_return = ((bench_data['Benchmark Actions'].iloc[-1] / bench_data['Benchmark Actions'].iloc[0]) - 1) * 100
+                else:
+                    bench_actions_return = 0.0
+            else:
+                bench_oblig_return = 0.0
+                bench_actions_return = 0.0
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric(
+                    f"Rendement {selected_fcp}",
+                    f"{fcp_return:.2f}%",
+                    help=f"Rendement cumulé depuis {fcp_vl['Date'].min().strftime('%Y-%m-%d')}"
+                )
+            
+            with col2:
+                if obligations_pct > 0:
+                    st.metric(
+                        "Benchmark Obligataire",
+                        f"{bench_oblig_return:.2f}%",
+                        delta=f"{fcp_return - bench_oblig_return:.2f}% vs FCP",
+                        help="Rendement du benchmark obligataire sur la même période"
+                    )
+            
+            with col3:
+                if actions_pct > 0:
+                    st.metric(
+                        "Benchmark Actions",
+                        f"{bench_actions_return:.2f}%",
+                        delta=f"{fcp_return - bench_actions_return:.2f}% vs FCP",
+                        help="Rendement du benchmark actions sur la même période"
+                    )
     
     st.markdown("---")
     
