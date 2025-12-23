@@ -378,8 +378,6 @@ def main():
             
             st.plotly_chart(fig_bench, use_container_width=True)
             
-            st.plotly_chart(fig_bench, use_container_width=True)
-            
             # Statistiques de performance
             st.markdown("##### Statistiques de Performance")
             
