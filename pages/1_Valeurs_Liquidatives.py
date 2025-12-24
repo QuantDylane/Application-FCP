@@ -1125,6 +1125,27 @@ def load_benchmarks():
         return pd.DataFrame()
 
 
+def normalize_benchmark_column(df, column_name):
+    """
+    Normalise une colonne de benchmark pour affichage en base 100 ou pourcentage cumulé
+    
+    Args:
+        df: DataFrame contenant les données de benchmark
+        column_name: Nom de la colonne à normaliser
+    
+    Returns:
+        Series normalisée ou None si impossible
+    """
+    if len(df) == 0 or column_name not in df.columns:
+        return None
+    
+    initial_value = df[column_name].iloc[0]
+    if initial_value == 0:
+        return None
+    
+    return ((df[column_name] / initial_value) - 1) * 100
+
+
 def main():
     """Main function for the Valeurs Liquidatives page"""
     st.header("📈 Analyse des Valeurs Liquidatives")
@@ -1643,15 +1664,14 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         
         # Normalize benchmarks if showing them
         if show_benchmark and not df_benchmarks.empty and len(benchmark_plot_df) > 0:
-            # Check for required columns before normalizing
-            if 'Benchmark Actions' in benchmark_plot_df.columns and benchmark_plot_df['Benchmark Actions'].iloc[0] != 0:
-                benchmark_plot_df['Benchmark Actions'] = (
-                    (benchmark_plot_df['Benchmark Actions'] / benchmark_plot_df['Benchmark Actions'].iloc[0]) - 1
-                ) * 100
-            if 'Benchmark Obligataire' in benchmark_plot_df.columns and benchmark_plot_df['Benchmark Obligataire'].iloc[0] != 0:
-                benchmark_plot_df['Benchmark Obligataire'] = (
-                    (benchmark_plot_df['Benchmark Obligataire'] / benchmark_plot_df['Benchmark Obligataire'].iloc[0]) - 1
-                ) * 100
+            # Normalize benchmark columns using helper function
+            normalized_actions = normalize_benchmark_column(benchmark_plot_df, 'Benchmark Actions')
+            if normalized_actions is not None:
+                benchmark_plot_df['Benchmark Actions'] = normalized_actions
+            
+            normalized_oblig = normalize_benchmark_column(benchmark_plot_df, 'Benchmark Obligataire')
+            if normalized_oblig is not None:
+                benchmark_plot_df['Benchmark Obligataire'] = normalized_oblig
     
     # Check if we have data to plot
     if len(vl_plot_df) == 0:
