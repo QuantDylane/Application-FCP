@@ -243,19 +243,32 @@ def main():
                     obligations_data['Pays']
                 )
                 
-                # Calculate Duration proxy based on secteur and cotation
-                # Cotation Coté -> shorter duration (2-5 years)
-                # Cotation Non coté -> longer duration (5-10 years)
-                # Secteur Etat -> medium duration (3-7 years)
-                # Secteur Institutionnel/Regional -> varies (2-8 years)
+                # Calculate Duration proxy based on cotation type
+                # Duration estimation methodology:
+                # - "Coté" (Listed): Typically shorter duration (2.5 to ~5 years)
+                #   Formula: 2.5 base + (percentage * 0.3 scaling factor)
+                # - "Non coté" (Unlisted): Typically longer duration (5 to ~10 years)
+                #   Formula: 5.0 base + (percentage * 0.5 scaling factor)
+                # - Default fallback: Medium duration (3 to ~8 years)
+                #   Formula: 3.0 base + (percentage * 0.4 scaling factor)
+                
+                DURATION_BASE_LISTED = 2.5  # Base duration for listed bonds (years)
+                DURATION_SCALE_LISTED = 0.3  # Scaling factor for listed bonds
+                DURATION_BASE_UNLISTED = 5.0  # Base duration for unlisted bonds (years)
+                DURATION_SCALE_UNLISTED = 0.5  # Scaling factor for unlisted bonds
+                DURATION_BASE_DEFAULT = 3.0  # Default base duration (years)
+                DURATION_SCALE_DEFAULT = 0.4  # Default scaling factor
                 
                 duration_mapping = {
-                    'Coté': lambda pct: pct * 0.3 + 2.5,  # 2.5 to ~5 years
-                    'Non coté': lambda pct: pct * 0.5 + 5.0  # 5 to ~10 years
+                    'Coté': lambda pct: pct * DURATION_SCALE_LISTED + DURATION_BASE_LISTED,
+                    'Non coté': lambda pct: pct * DURATION_SCALE_UNLISTED + DURATION_BASE_UNLISTED
                 }
                 
                 obligations_data['Duration'] = obligations_data.apply(
-                    lambda row: duration_mapping.get(row['Cotation'], lambda x: x * 0.4 + 3.0)(row['Pourcentage']),
+                    lambda row: duration_mapping.get(
+                        row['Cotation'], 
+                        lambda x: x * DURATION_SCALE_DEFAULT + DURATION_BASE_DEFAULT
+                    )(row['Pourcentage']),
                     axis=1
                 )
                 

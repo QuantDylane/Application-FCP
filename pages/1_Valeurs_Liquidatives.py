@@ -1643,11 +1643,12 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
         
         # Normalize benchmarks if showing them
         if show_benchmark and not df_benchmarks.empty and len(benchmark_plot_df) > 0:
-            if len(benchmark_plot_df) > 0 and benchmark_plot_df['Benchmark Actions'].iloc[0] != 0:
+            # Check for required columns before normalizing
+            if 'Benchmark Actions' in benchmark_plot_df.columns and benchmark_plot_df['Benchmark Actions'].iloc[0] != 0:
                 benchmark_plot_df['Benchmark Actions'] = (
                     (benchmark_plot_df['Benchmark Actions'] / benchmark_plot_df['Benchmark Actions'].iloc[0]) - 1
                 ) * 100
-            if len(benchmark_plot_df) > 0 and benchmark_plot_df['Benchmark Obligataire'].iloc[0] != 0:
+            if 'Benchmark Obligataire' in benchmark_plot_df.columns and benchmark_plot_df['Benchmark Obligataire'].iloc[0] != 0:
                 benchmark_plot_df['Benchmark Obligataire'] = (
                     (benchmark_plot_df['Benchmark Obligataire'] / benchmark_plot_df['Benchmark Obligataire'].iloc[0]) - 1
                 ) * 100
