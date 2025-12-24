@@ -1638,55 +1638,63 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
     # Prepare data based on mode
     if vl_mode == 'Cumulé (%)':
         for fcp in selected_fcps:
-            if vl_plot_df[fcp].iloc[0] != 0:
+            if len(vl_plot_df) > 0 and vl_plot_df[fcp].iloc[0] != 0:
                 vl_plot_df[fcp] = ((vl_plot_df[fcp] / vl_plot_df[fcp].iloc[0]) - 1) * 100
         
         # Normalize benchmarks if showing them
         if show_benchmark and not df_benchmarks.empty and len(benchmark_plot_df) > 0:
-            if benchmark_plot_df['Benchmark Actions'].iloc[0] != 0:
+            if len(benchmark_plot_df) > 0 and benchmark_plot_df['Benchmark Actions'].iloc[0] != 0:
                 benchmark_plot_df['Benchmark Actions'] = (
                     (benchmark_plot_df['Benchmark Actions'] / benchmark_plot_df['Benchmark Actions'].iloc[0]) - 1
                 ) * 100
-            if benchmark_plot_df['Benchmark Obligataire'].iloc[0] != 0:
+            if len(benchmark_plot_df) > 0 and benchmark_plot_df['Benchmark Obligataire'].iloc[0] != 0:
                 benchmark_plot_df['Benchmark Obligataire'] = (
                     (benchmark_plot_df['Benchmark Obligataire'] / benchmark_plot_df['Benchmark Obligataire'].iloc[0]) - 1
                 ) * 100
+    
+    # Check if we have data to plot
+    if len(vl_plot_df) == 0:
+        st.warning("Aucune donnée disponible pour la période sélectionnée")
+        return
     
     # Create the evolution chart
     fig_evolution = go.Figure()
     
     # Add FCP traces
     for fcp in selected_fcps:
-        fig_evolution.add_trace(go.Scatter(
-            x=vl_plot_df['Date'],
-            y=vl_plot_df[fcp],
-            mode='lines',
-            name=fcp,
-            line=dict(width=2),
-            hovertemplate='<b>%{data.name}</b><br>Date: %{x}<br>Valeur: %{y:.2f}<extra></extra>'
-        ))
+        if fcp in vl_plot_df.columns:
+            fig_evolution.add_trace(go.Scatter(
+                x=vl_plot_df['Date'],
+                y=vl_plot_df[fcp],
+                mode='lines',
+                name=fcp,
+                line=dict(width=2),
+                hovertemplate='<b>%{data.name}</b><br>Date: %{x}<br>Valeur: %{y:.2f}<extra></extra>'
+            ))
     
     # Add benchmark traces if requested
     if show_benchmark and not df_benchmarks.empty and len(benchmark_plot_df) > 0:
         # Add Actions benchmark
-        fig_evolution.add_trace(go.Scatter(
-            x=benchmark_plot_df['Date'],
-            y=benchmark_plot_df['Benchmark Actions'],
-            mode='lines',
-            name='Benchmark Actions',
-            line=dict(color='green', width=2, dash='dash'),
-            hovertemplate='<b>Benchmark Actions</b><br>Date: %{x}<br>Valeur: %{y:.2f}<extra></extra>'
-        ))
+        if 'Benchmark Actions' in benchmark_plot_df.columns:
+            fig_evolution.add_trace(go.Scatter(
+                x=benchmark_plot_df['Date'],
+                y=benchmark_plot_df['Benchmark Actions'],
+                mode='lines',
+                name='Benchmark Actions',
+                line=dict(color='green', width=2, dash='dash'),
+                hovertemplate='<b>Benchmark Actions</b><br>Date: %{x}<br>Valeur: %{y:.2f}<extra></extra>'
+            ))
         
         # Add Obligations benchmark
-        fig_evolution.add_trace(go.Scatter(
-            x=benchmark_plot_df['Date'],
-            y=benchmark_plot_df['Benchmark Obligataire'],
-            mode='lines',
-            name='Benchmark Obligataire',
-            line=dict(color='orange', width=2, dash='dash'),
-            hovertemplate='<b>Benchmark Obligataire</b><br>Date: %{x}<br>Valeur: %{y:.2f}<extra></extra>'
-        ))
+        if 'Benchmark Obligataire' in benchmark_plot_df.columns:
+            fig_evolution.add_trace(go.Scatter(
+                x=benchmark_plot_df['Date'],
+                y=benchmark_plot_df['Benchmark Obligataire'],
+                mode='lines',
+                name='Benchmark Obligataire',
+                line=dict(color='orange', width=2, dash='dash'),
+                hovertemplate='<b>Benchmark Obligataire</b><br>Date: %{x}<br>Valeur: %{y:.2f}<extra></extra>'
+            ))
     
     y_title = "Performance Cumulée (%)" if vl_mode == 'Cumulé (%)' else "Valeur Liquidative"
     title_text = f"Évolution des Valeurs Liquidatives - {vl_period} - {vl_mode}"

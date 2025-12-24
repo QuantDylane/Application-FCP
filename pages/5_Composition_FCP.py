@@ -478,13 +478,13 @@ def main():
             elif comparison_filter == 'Sous-portefeuille Actions':
                 # Show Actions sub-portfolio vs Actions benchmark only
                 if actions_pct > 0:
-                    # Calculate sub-portfolio performance (approximation using allocation weight)
-                    fcp_vl['Actions_subportfolio'] = fcp_vl['VL_norm']
+                    # Note: Using FCP global performance as proxy for sub-portfolio performance
+                    # A more accurate calculation would require detailed sub-portfolio VL data
                     
                     fig_bench.add_trace(go.Scatter(
                         x=fcp_vl['Date'],
-                        y=fcp_vl['Actions_subportfolio'],
-                        name=f'{selected_fcp} - Sous-portefeuille Actions',
+                        y=fcp_vl['VL_norm'],
+                        name=f'{selected_fcp} (Allocation Actions: {actions_pct:.1f}%)',
                         line=dict(color=PRIMARY_COLOR, width=3)
                     ))
                     
@@ -495,7 +495,8 @@ def main():
                         line=dict(color='green', width=2, dash='dash')
                     ))
                     
-                    chart_title = f'Sous-portefeuille Actions de {selected_fcp} vs Benchmark Actions (base 100)'
+                    chart_title = f'Performance {selected_fcp} vs Benchmark Actions (base 100)'
+                    st.info(f"💡 Comparaison du FCP (allocation actions: {actions_pct:.1f}%) avec le benchmark actions")
                 else:
                     st.warning("Le FCP sélectionné n'a pas d'allocation en actions")
                     return
@@ -503,13 +504,13 @@ def main():
             else:  # Sous-portefeuille Obligations
                 # Show Obligations sub-portfolio vs Obligations benchmark only
                 if obligations_pct > 0:
-                    # Calculate sub-portfolio performance (approximation using allocation weight)
-                    fcp_vl['Oblig_subportfolio'] = fcp_vl['VL_norm']
+                    # Note: Using FCP global performance as proxy for sub-portfolio performance
+                    # A more accurate calculation would require detailed sub-portfolio VL data
                     
                     fig_bench.add_trace(go.Scatter(
                         x=fcp_vl['Date'],
-                        y=fcp_vl['Oblig_subportfolio'],
-                        name=f'{selected_fcp} - Sous-portefeuille Obligations',
+                        y=fcp_vl['VL_norm'],
+                        name=f'{selected_fcp} (Allocation Obligations: {obligations_pct:.1f}%)',
                         line=dict(color=PRIMARY_COLOR, width=3)
                     ))
                     
@@ -520,7 +521,8 @@ def main():
                         line=dict(color='orange', width=2, dash='dash')
                     ))
                     
-                    chart_title = f'Sous-portefeuille Obligations de {selected_fcp} vs Benchmark Obligataire (base 100)'
+                    chart_title = f'Performance {selected_fcp} vs Benchmark Obligataire (base 100)'
+                    st.info(f"💡 Comparaison du FCP (allocation obligations: {obligations_pct:.1f}%) avec le benchmark obligataire")
                 else:
                     st.warning("Le FCP sélectionné n'a pas d'allocation en obligations")
                     return
