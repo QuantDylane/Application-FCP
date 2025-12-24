@@ -1496,7 +1496,7 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
     # Calculate annualized returns for all selected FCPs
     annualized_returns = []
     for fcp in selected_fcps:
-        fcp_data = full_df[[' Date', fcp]].dropna()
+        fcp_data = full_df[['Date', fcp]].dropna()
         if len(fcp_data) > 1:
             # Calculate total return
             initial_value = fcp_data[fcp].iloc[0]

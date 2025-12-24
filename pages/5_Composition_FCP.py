@@ -244,14 +244,14 @@ def main():
                 )
                 
                 # Calculate Duration proxy based on secteur and cotation
-                # Cotation cotée -> shorter duration (2-5 years)
-                # Cotation non cotée -> longer duration (5-10 years)
+                # Cotation Coté -> shorter duration (2-5 years)
+                # Cotation Non coté -> longer duration (5-10 years)
                 # Secteur Etat -> medium duration (3-7 years)
                 # Secteur Institutionnel/Regional -> varies (2-8 years)
                 
                 duration_mapping = {
-                    'Cotée': lambda pct: pct * 0.3 + 2.5,  # 2.5 to ~5 years
-                    'Non Cotée': lambda pct: pct * 0.5 + 5.0  # 5 to ~10 years
+                    'Coté': lambda pct: pct * 0.3 + 2.5,  # 2.5 to ~5 years
+                    'Non coté': lambda pct: pct * 0.5 + 5.0  # 5 to ~10 years
                 }
                 
                 obligations_data['Duration'] = obligations_data.apply(
