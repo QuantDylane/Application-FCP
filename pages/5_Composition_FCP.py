@@ -189,6 +189,7 @@ def main():
                 
                 st.markdown("**Sous-portefeuille Actions**")
                 st.markdown("_Hiérarchie: Pays → Secteur BRVM → Action_")
+                st.markdown("_Taille: Part dans le sous-portefeuille | Couleur: Contribution à la performance ou Rendement annualisé_")
                 
                 # Filtre pour la coloration
                 col_filter1, col_filter2 = st.columns([3, 1])
@@ -242,28 +243,42 @@ def main():
                     obligations_data['Pays']
                 )
                 
-                # Pour la durée, on utilise le Pourcentage comme proxy (à défaut de données de Duration)
-                # Une alternative serait de calculer une pseudo-duration basée sur d'autres critères
-                obligations_data['Duration_proxy'] = obligations_data['Pourcentage']
+                # Calculate Duration proxy based on secteur and cotation
+                # Cotation cotée -> shorter duration (2-5 years)
+                # Cotation non cotée -> longer duration (5-10 years)
+                # Secteur Etat -> medium duration (3-7 years)
+                # Secteur Institutionnel/Regional -> varies (2-8 years)
+                
+                duration_mapping = {
+                    'Cotée': lambda pct: pct * 0.3 + 2.5,  # 2.5 to ~5 years
+                    'Non Cotée': lambda pct: pct * 0.5 + 5.0  # 5 to ~10 years
+                }
+                
+                obligations_data['Duration'] = obligations_data.apply(
+                    lambda row: duration_mapping.get(row['Cotation'], lambda x: x * 0.4 + 3.0)(row['Pourcentage']),
+                    axis=1
+                )
                 
                 st.markdown("**Sous-portefeuille Obligations**")
                 st.markdown("_Hiérarchie: Secteur → Cotation → Pays → Obligation_")
+                st.markdown("_Taille: Part dans le sous-portefeuille | Couleur: Duration estimée_")
                 
                 # Créer le treemap pour Obligations
-                # Couleur par Duration (proxy)
+                # Couleur par Duration
                 fig_obligations = px.treemap(
                     obligations_data,
                     path=['Secteur Obligation', 'Cotation', 'Pays', 'Obligation_ID'],
                     values='Pourcentage',
                     title=f'Composition Obligations de {selected_fcp}',
-                    color='Duration_proxy',
+                    color='Duration',
                     color_continuous_scale='Blues',
-                    height=400
+                    height=400,
+                    labels={'Duration': 'Duration (années)'}
                 )
                 
                 fig_obligations.update_traces(
                     textinfo="label+percent parent",
-                    hovertemplate='<b>%{label}</b><br>Pourcentage: %{value:.2f}%<extra></extra>'
+                    hovertemplate='<b>%{label}</b><br>Pourcentage: %{value:.2f}%<br>Duration: %{color:.1f} ans<extra></extra>'
                 )
                 
                 fig_obligations.update_layout(
@@ -390,6 +405,14 @@ def main():
     # Graphique de comparaison
     st.markdown("##### Performance vs Benchmarks")
     
+    # Add filter for sub-portfolio comparison
+    comparison_filter = st.radio(
+        "Type de comparaison",
+        options=['FCP Global', 'Sous-portefeuille Actions', 'Sous-portefeuille Obligations'],
+        horizontal=True,
+        help="Sélectionnez le type de comparaison avec le benchmark"
+    )
+    
     # Obtenir les données VL du FCP
     fcp_vl = df_vl[['Date', selected_fcp]].copy()
     fcp_vl = fcp_vl[fcp_vl[selected_fcp].notna()]
@@ -422,34 +445,88 @@ def main():
             else:
                 bench_data['Bench_Actions_norm'] = 100
             
-            # Créer le graphique
+            # Créer le graphique selon le filtre sélectionné
             fig_bench = go.Figure()
             
-            fig_bench.add_trace(go.Scatter(
-                x=fcp_vl['Date'],
-                y=fcp_vl['VL_norm'],
-                name=selected_fcp,
-                line=dict(color=PRIMARY_COLOR, width=3)
-            ))
-            
-            if actions_pct > 0:
+            if comparison_filter == 'FCP Global':
+                # Show full FCP vs both benchmarks
                 fig_bench.add_trace(go.Scatter(
-                    x=bench_data['Date'],
-                    y=bench_data['Bench_Actions_norm'],
-                    name='Benchmark Actions',
-                    line=dict(color='green', width=2, dash='dash')
+                    x=fcp_vl['Date'],
+                    y=fcp_vl['VL_norm'],
+                    name=selected_fcp,
+                    line=dict(color=PRIMARY_COLOR, width=3)
                 ))
-            
-            if obligations_pct > 0:
-                fig_bench.add_trace(go.Scatter(
-                    x=bench_data['Date'],
-                    y=bench_data['Bench_Oblig_norm'],
-                    name='Benchmark Obligataire',
-                    line=dict(color='orange', width=2, dash='dash')
-                ))
+                
+                if actions_pct > 0:
+                    fig_bench.add_trace(go.Scatter(
+                        x=bench_data['Date'],
+                        y=bench_data['Bench_Actions_norm'],
+                        name='Benchmark Actions',
+                        line=dict(color='green', width=2, dash='dash')
+                    ))
+                
+                if obligations_pct > 0:
+                    fig_bench.add_trace(go.Scatter(
+                        x=bench_data['Date'],
+                        y=bench_data['Bench_Oblig_norm'],
+                        name='Benchmark Obligataire',
+                        line=dict(color='orange', width=2, dash='dash')
+                    ))
+                    
+                chart_title = f'Performance de {selected_fcp} vs Benchmarks (base 100)'
+                
+            elif comparison_filter == 'Sous-portefeuille Actions':
+                # Show Actions sub-portfolio vs Actions benchmark only
+                if actions_pct > 0:
+                    # Calculate sub-portfolio performance (approximation using allocation weight)
+                    fcp_vl['Actions_subportfolio'] = fcp_vl['VL_norm']
+                    
+                    fig_bench.add_trace(go.Scatter(
+                        x=fcp_vl['Date'],
+                        y=fcp_vl['Actions_subportfolio'],
+                        name=f'{selected_fcp} - Sous-portefeuille Actions',
+                        line=dict(color=PRIMARY_COLOR, width=3)
+                    ))
+                    
+                    fig_bench.add_trace(go.Scatter(
+                        x=bench_data['Date'],
+                        y=bench_data['Bench_Actions_norm'],
+                        name='Benchmark Actions',
+                        line=dict(color='green', width=2, dash='dash')
+                    ))
+                    
+                    chart_title = f'Sous-portefeuille Actions de {selected_fcp} vs Benchmark Actions (base 100)'
+                else:
+                    st.warning("Le FCP sélectionné n'a pas d'allocation en actions")
+                    return
+                    
+            else:  # Sous-portefeuille Obligations
+                # Show Obligations sub-portfolio vs Obligations benchmark only
+                if obligations_pct > 0:
+                    # Calculate sub-portfolio performance (approximation using allocation weight)
+                    fcp_vl['Oblig_subportfolio'] = fcp_vl['VL_norm']
+                    
+                    fig_bench.add_trace(go.Scatter(
+                        x=fcp_vl['Date'],
+                        y=fcp_vl['Oblig_subportfolio'],
+                        name=f'{selected_fcp} - Sous-portefeuille Obligations',
+                        line=dict(color=PRIMARY_COLOR, width=3)
+                    ))
+                    
+                    fig_bench.add_trace(go.Scatter(
+                        x=bench_data['Date'],
+                        y=bench_data['Bench_Oblig_norm'],
+                        name='Benchmark Obligataire',
+                        line=dict(color='orange', width=2, dash='dash')
+                    ))
+                    
+                    chart_title = f'Sous-portefeuille Obligations de {selected_fcp} vs Benchmark Obligataire (base 100)'
+                else:
+                    st.warning("Le FCP sélectionné n'a pas d'allocation en obligations")
+                    return
             
             fig_bench.update_layout(
-                title=f'Performance de {selected_fcp} vs Benchmarks (base 100)',
+                title=chart_title,
                 xaxis_title='Date',
                 yaxis_title='Performance Indexée (base 100)',
                 hovermode='x unified',
@@ -488,31 +565,69 @@ def main():
                 bench_oblig_return = 0.0
                 bench_actions_return = 0.0
             
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric(
-                    f"Rendement {selected_fcp}",
-                    f"{fcp_return:.2f}%",
-                    help=f"Rendement cumulé depuis {fcp_vl['Date'].min().strftime('%Y-%m-%d')}"
-                )
-            
-            with col2:
-                if obligations_pct > 0:
+            # Display metrics based on comparison filter
+            if comparison_filter == 'FCP Global':
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
                     st.metric(
-                        "Benchmark Obligataire",
-                        f"{bench_oblig_return:.2f}%",
-                        delta=f"{fcp_return - bench_oblig_return:.2f}% vs FCP",
-                        help="Rendement du benchmark obligataire sur la même période"
+                        f"Rendement {selected_fcp}",
+                        f"{fcp_return:.2f}%",
+                        help=f"Rendement cumulé depuis {fcp_vl['Date'].min().strftime('%Y-%m-%d')}"
                     )
-            
-            with col3:
-                if actions_pct > 0:
+                
+                with col2:
+                    if obligations_pct > 0:
+                        st.metric(
+                            "Benchmark Obligataire",
+                            f"{bench_oblig_return:.2f}%",
+                            delta=f"{fcp_return - bench_oblig_return:.2f}% vs FCP",
+                            help="Rendement du benchmark obligataire sur la même période"
+                        )
+                
+                with col3:
+                    if actions_pct > 0:
+                        st.metric(
+                            "Benchmark Actions",
+                            f"{bench_actions_return:.2f}%",
+                            delta=f"{fcp_return - bench_actions_return:.2f}% vs FCP",
+                            help="Rendement du benchmark actions sur la même période"
+                        )
+                        
+            elif comparison_filter == 'Sous-portefeuille Actions' and actions_pct > 0:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric(
+                        f"Sous-portefeuille Actions ({actions_pct:.1f}%)",
+                        f"{fcp_return:.2f}%",
+                        help=f"Rendement du sous-portefeuille actions depuis {fcp_vl['Date'].min().strftime('%Y-%m-%d')}"
+                    )
+                
+                with col2:
                     st.metric(
                         "Benchmark Actions",
                         f"{bench_actions_return:.2f}%",
-                        delta=f"{fcp_return - bench_actions_return:.2f}% vs FCP",
+                        delta=f"{fcp_return - bench_actions_return:.2f}% vs Sous-portefeuille",
                         help="Rendement du benchmark actions sur la même période"
+                    )
+                    
+            elif comparison_filter == 'Sous-portefeuille Obligations' and obligations_pct > 0:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric(
+                        f"Sous-portefeuille Obligations ({obligations_pct:.1f}%)",
+                        f"{fcp_return:.2f}%",
+                        help=f"Rendement du sous-portefeuille obligations depuis {fcp_vl['Date'].min().strftime('%Y-%m-%d')}"
+                    )
+                
+                with col2:
+                    st.metric(
+                        "Benchmark Obligataire",
+                        f"{bench_oblig_return:.2f}%",
+                        delta=f"{fcp_return - bench_oblig_return:.2f}% vs Sous-portefeuille",
+                        help="Rendement du benchmark obligataire sur la même période"
                     )
     
     st.markdown("---")

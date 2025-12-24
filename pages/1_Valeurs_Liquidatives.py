@@ -1112,6 +1112,19 @@ def load_data():
     return df
 
 
+@st.cache_data
+def load_benchmarks():
+    """Charge les données des benchmarks"""
+    try:
+        df = pd.read_excel(DATA_FILE, sheet_name='Benchmarks')
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        df = df.sort_values('Date')
+        return df
+    except Exception as e:
+        st.warning(f"Impossible de charger les benchmarks: {str(e)}")
+        return pd.DataFrame()
+
+
 def main():
     """Main function for the Valeurs Liquidatives page"""
     st.header("📈 Analyse des Valeurs Liquidatives")
@@ -1475,8 +1488,106 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
     </div>
     """, unsafe_allow_html=True)
     
+    # ===================
+    # Section: Annualized Returns Chart (Ladder-style)
+    # ===================
+    st.markdown("### 📊 Rendements Annualisés des FCP")
+    
+    # Calculate annualized returns for all selected FCPs
+    annualized_returns = []
+    for fcp in selected_fcps:
+        fcp_data = full_df[[' Date', fcp]].dropna()
+        if len(fcp_data) > 1:
+            # Calculate total return
+            initial_value = fcp_data[fcp].iloc[0]
+            final_value = fcp_data[fcp].iloc[-1]
+            
+            # Calculate number of years
+            days = (fcp_data['Date'].iloc[-1] - fcp_data['Date'].iloc[0]).days
+            years = days / 365.25
+            
+            if years > 0 and initial_value > 0:
+                # Annualized return formula: (final/initial)^(1/years) - 1
+                annualized_return = ((final_value / initial_value) ** (1 / years) - 1) * 100
+                annualized_returns.append({
+                    'FCP': fcp,
+                    'Rendement Annualisé (%)': annualized_return
+                })
+    
+    if annualized_returns:
+        df_annualized = pd.DataFrame(annualized_returns)
+        df_annualized = df_annualized.sort_values('Rendement Annualisé (%)', ascending=True)
+        
+        # Create an attractive ladder/bar chart
+        fig_annualized = go.Figure()
+        
+        # Color bars based on positive/negative
+        colors = ['#28a745' if x >= 0 else '#dc3545' for x in df_annualized['Rendement Annualisé (%)']]
+        
+        fig_annualized.add_trace(go.Bar(
+            y=df_annualized['FCP'],
+            x=df_annualized['Rendement Annualisé (%)'],
+            orientation='h',
+            marker=dict(
+                color=colors,
+                line=dict(color='rgba(0,0,0,0.3)', width=1)
+            ),
+            text=[f"{val:+.2f}%" for val in df_annualized['Rendement Annualisé (%)']],
+            textposition='outside',
+            textfont=dict(size=12, color='black'),
+            hovertemplate='<b>%{y}</b><br>Rendement Annualisé: %{x:.2f}%<extra></extra>'
+        ))
+        
+        fig_annualized.update_layout(
+            title=dict(
+                text='Rendements Annualisés des FCP Sélectionnés',
+                font=dict(size=16, color=PRIMARY_COLOR)
+            ),
+            xaxis_title='Rendement Annualisé (%)',
+            yaxis_title='',
+            height=max(300, len(df_annualized) * 40),
+            template="plotly_white",
+            showlegend=False,
+            xaxis=dict(
+                showgrid=True,
+                gridcolor='rgba(0,0,0,0.1)',
+                zeroline=True,
+                zerolinecolor='rgba(0,0,0,0.5)',
+                zerolinewidth=2
+            ),
+            yaxis=dict(
+                showgrid=False
+            ),
+            margin=dict(l=100, r=100, t=60, b=50)
+        )
+        
+        st.plotly_chart(fig_annualized, use_container_width=True)
+        
+        # Add summary statistics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            best_fcp = df_annualized.iloc[-1]['FCP']
+            best_return = df_annualized.iloc[-1]['Rendement Annualisé (%)']
+            st.metric("🏆 Meilleur Rendement", f"{best_return:+.2f}%", delta=best_fcp)
+        
+        with col2:
+            avg_return = df_annualized['Rendement Annualisé (%)'].mean()
+            st.metric("📊 Rendement Moyen", f"{avg_return:+.2f}%")
+        
+        with col3:
+            worst_fcp = df_annualized.iloc[0]['FCP']
+            worst_return = df_annualized.iloc[0]['Rendement Annualisé (%)']
+            st.metric("📉 Rendement le Plus Faible", f"{worst_return:+.2f}%", delta=worst_fcp)
+        
+        st.markdown("---")
+    
+    # ===================
+    # Section: VL Evolution Chart
+    # ===================
+    st.markdown("### 📈 Évolution des Valeurs Liquidatives")
+    
     # Period selection for VL graph
-    col1, col2 = st.columns([3, 1])
+    col1, col2, col3 = st.columns([3, 1, 1])
     
     with col1:
         vl_period = st.radio(
@@ -1495,6 +1606,13 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             help="Absolue: valeurs liquidatives réelles | Cumulé: performance en % depuis le début de la période"
         )
     
+    with col3:
+        show_benchmark = st.checkbox(
+            "Afficher Benchmarks",
+            value=False,
+            help="Afficher les benchmarks Actions et Obligataire pour comparaison"
+        )
+    
     # Filter data based on period selection
     max_date = full_df['Date'].max()
     
@@ -1511,14 +1629,33 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
     
     vl_plot_df = full_df[full_df['Date'] >= start_date].copy()
     
+    # Load benchmark data if needed
+    if show_benchmark:
+        df_benchmarks = load_benchmarks()
+        if not df_benchmarks.empty:
+            benchmark_plot_df = df_benchmarks[df_benchmarks['Date'] >= start_date].copy()
+    
     # Prepare data based on mode
     if vl_mode == 'Cumulé (%)':
         for fcp in selected_fcps:
-            vl_plot_df[fcp] = ((vl_plot_df[fcp] / vl_plot_df[fcp].iloc[0]) - 1) * 100
+            if vl_plot_df[fcp].iloc[0] != 0:
+                vl_plot_df[fcp] = ((vl_plot_df[fcp] / vl_plot_df[fcp].iloc[0]) - 1) * 100
+        
+        # Normalize benchmarks if showing them
+        if show_benchmark and not df_benchmarks.empty and len(benchmark_plot_df) > 0:
+            if benchmark_plot_df['Benchmark Actions'].iloc[0] != 0:
+                benchmark_plot_df['Benchmark Actions'] = (
+                    (benchmark_plot_df['Benchmark Actions'] / benchmark_plot_df['Benchmark Actions'].iloc[0]) - 1
+                ) * 100
+            if benchmark_plot_df['Benchmark Obligataire'].iloc[0] != 0:
+                benchmark_plot_df['Benchmark Obligataire'] = (
+                    (benchmark_plot_df['Benchmark Obligataire'] / benchmark_plot_df['Benchmark Obligataire'].iloc[0]) - 1
+                ) * 100
     
     # Create the evolution chart
     fig_evolution = go.Figure()
     
+    # Add FCP traces
     for fcp in selected_fcps:
         fig_evolution.add_trace(go.Scatter(
             x=vl_plot_df['Date'],
@@ -1529,8 +1666,32 @@ la plus faible à **{worst_fcp['Performance (%)']:+.2f}%**. La performance moyen
             hovertemplate='<b>%{data.name}</b><br>Date: %{x}<br>Valeur: %{y:.2f}<extra></extra>'
         ))
     
+    # Add benchmark traces if requested
+    if show_benchmark and not df_benchmarks.empty and len(benchmark_plot_df) > 0:
+        # Add Actions benchmark
+        fig_evolution.add_trace(go.Scatter(
+            x=benchmark_plot_df['Date'],
+            y=benchmark_plot_df['Benchmark Actions'],
+            mode='lines',
+            name='Benchmark Actions',
+            line=dict(color='green', width=2, dash='dash'),
+            hovertemplate='<b>Benchmark Actions</b><br>Date: %{x}<br>Valeur: %{y:.2f}<extra></extra>'
+        ))
+        
+        # Add Obligations benchmark
+        fig_evolution.add_trace(go.Scatter(
+            x=benchmark_plot_df['Date'],
+            y=benchmark_plot_df['Benchmark Obligataire'],
+            mode='lines',
+            name='Benchmark Obligataire',
+            line=dict(color='orange', width=2, dash='dash'),
+            hovertemplate='<b>Benchmark Obligataire</b><br>Date: %{x}<br>Valeur: %{y:.2f}<extra></extra>'
+        ))
+    
     y_title = "Performance Cumulée (%)" if vl_mode == 'Cumulé (%)' else "Valeur Liquidative"
     title_text = f"Évolution des Valeurs Liquidatives - {vl_period} - {vl_mode}"
+    if show_benchmark:
+        title_text += " (avec Benchmarks)"
     
     fig_evolution.update_layout(
         title=title_text,
